@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organizando um projeto TypeScript | Guia TypeScript</title>
+<meta name="description" content="Como organizar um projeto TypeScript com Node: pastas por responsabilidade, arquivos index.ts que reexportam, tipos separados com import type, scripts build, start e check no package.json, limpeza do dist e .gitignore, com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Organizando o <span class="hl">projeto</span></h1>
+
+<p class="intro">Com poucos arquivos, tudo cabe em <code>src/</code>. Quando o projeto cresce, uma boa organização faz você achar as coisas e evita imports confusos. Nesta aula montamos uma estrutura simples e comum, com scripts no <code>package.json</code> para compilar, rodar e conferir.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Separar o código em pastas por responsabilidade.</li>
+<li>Arquivos <code>index.ts</code> que reexportam (“barris”).</li>
+<li>Guardar tipos num lugar só e importá-los com <code>import type</code>.</li>
+<li>Scripts <code>build</code>, <code>start</code> e <code>check</code>, e limpar o <code>dist</code>.</li>
+<li>O que <strong>não</strong> vai para o git.</li>
+</ul></div>
+<hr>
+<h2>1. Uma estrutura simples</h2>
+<pre class="file" data-file="estrutura">projeto/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.ts            ← ponto de entrada
+│   ├── tipos.ts            ← tipos compartilhados
+│   ├── modelos/
+│   │   ├── index.ts        ← reexporta a pasta
+│   │   └── produto.ts
+│   └── servicos/
+│       ├── index.ts
+│       └── estoque.ts
+└── dist/                   ← gerado pelo tsc (não vai para o git)</pre>
+<p>Vamos criar os arquivos. Primeiro os tipos compartilhados:</p>
+<pre class="file" data-file="src/tipos.ts">export type Id = number;
+export type Categoria = "papelaria" | "limpeza";</pre>
+<pre class="file" data-file="src/modelos/produto.ts">import type { Id, Categoria } from "../tipos.js";
+
+export interface Produto {
+  id: Id;
+  nome: string;
+  categoria: Categoria;
+  quantidade: number;
+}
+
+export function criarProduto(id: Id, nome: string, categoria: Categoria): Produto {
+  return { id, nome, categoria, quantidade: 0 };
+}</pre>
+<pre class="file" data-file="src/modelos/index.ts">export * from "./produto.js";</pre>
+<pre class="file" data-file="src/servicos/estoque.ts">import type { Produto } from "../modelos/index.js";
+
+export function repor(p: Produto, qtd: number): Produto {
+  return { ...p, quantidade: p.quantidade + qtd };
+}
+
+export function emFalta(lista: Produto[]): string[] {
+  return lista.filter((p) =&gt; p.quantidade === 0).map((p) =&gt; p.nome);
+}</pre>
+<pre class="file" data-file="src/servicos/index.ts">export * from "./estoque.js";</pre>
+<pre class="file" data-file="src/index.ts">import { criarProduto } from "./modelos/index.js";
+import { repor, emFalta } from "./servicos/index.js";
+
+const lapis = repor(criarProduto(1, "Lápis", "papelaria"), 30);
+const sabao = criarProduto(2, "Sabão", "limpeza");
+
+console.log(lapis);
+console.log("Em falta:", emFalta([lapis, sabao]));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/index.js
+{ id: 1, nome: 'Lápis', categoria: 'papelaria', quantidade: 30 }
+Em falta: [ 'Sabão' ]
+$ ls dist dist/modelos
+dist:
+index.d.ts
+index.d.ts.map
+index.js
+index.js.map
+modelos
+servicos
+tipos.d.ts
+tipos.d.ts.map
+tipos.js
+tipos.js.map
+
+dist/modelos:
+index.d.ts
+index.d.ts.map
+index.js
+index.js.map
+produto.d.ts
+produto.d.ts.map
+produto.js
+produto.js.map</pre>
+<p>O <code>dist/</code> repete as pastas do <code>src/</code>. Repare nos imports do <code>index.ts</code>: <code>"./modelos/index.js"</code> em vez de <code>"./modelos/produto.js"</code>. Se amanhã a pasta <code>modelos</code> ganhar mais arquivos, quem importa não muda.</p>
+<div class="tip"><strong>Barril, só com moderação</strong><p>Os <code>index.ts</code> que reexportam são práticos, mas um barril gigante, com o projeto inteiro, deixa difícil saber de onde vem cada coisa. Um por pasta costuma bastar.</p></div>
+<hr>
+<h2>2. Scripts: build, start e check</h2>
+<pre class="term" data-cwd="~/projeto">$ npm pkg set scripts.build="tsc"
+$ npm pkg set scripts.start="node dist/index.js"
+$ npm pkg set scripts.check="tsc --noEmit"
+$ npm pkg get scripts
+{
+  "test": "echo \"Error: no test specified\" &amp;&amp; exit 1",
+  "build": "tsc",
+  "start": "node dist/index.js",
+  "check": "tsc --noEmit"
+}
+$ npm run build
+
+&gt; projeto@1.0.0 build
+&gt; tsc
+$ npm start
+
+&gt; projeto@1.0.0 start
+&gt; node dist/index.js
+
+{ id: 1, nome: 'Lápis', categoria: 'papelaria', quantidade: 30 }
+Em falta: [ 'Sabão' ]</pre>
+<dl class="anatomy">
+<dt><code>npm run build</code></dt><dd>compila <code>src/</code> para <code>dist/</code>.</dd>
+<dt><code>npm start</code></dt><dd>roda o programa compilado (<code>start</code> dispensa o <code>run</code>).</dd>
+<dt><code>npm run check</code></dt><dd>confere os tipos sem gerar nada.</dd>
+</dl>
+<hr>
+<h2>3. Arquivos órfãos no dist</h2>
+<p>O <code>tsc</code> cria e atualiza arquivos em <code>dist/</code>, mas <strong>não apaga</strong>. Se você renomear ou apagar um <code>.ts</code>, o <code>.js</code> antigo continua lá:</p>
+<pre class="term" data-cwd="~/projeto">$ rm src/servicos/estoque.ts
+$ npx tsc
+src/index.ts(2,10): error TS2305: Module '"./servicos/index.js"' has no exported member 'repor'.
+src/index.ts(2,17): error TS2305: Module '"./servicos/index.js"' has no exported member 'emFalta'.
+src/servicos/index.ts(1,15): error TS2307: Cannot find module './estoque.js' or its corresponding type declarations.
+$ ls dist/servicos
+estoque.d.ts
+estoque.d.ts.map
+estoque.js
+estoque.js.map
+index.d.ts
+index.d.ts.map
+index.js
+index.js.map</pre>
+<p>O <code>tsc</code> reclamou do import quebrado, mas o <code>estoque.js</code> antigo ficou em <code>dist/servicos</code>, e o programa ainda rodaria com o código velho. Por isso é comum limpar antes de compilar:</p>
+<pre class="term" data-cwd="~/projeto">$ npm pkg set scripts.build="rm -rf dist &amp;&amp; tsc"
+$ npm pkg get scripts.build
+"rm -rf dist &amp;&amp; tsc"</pre>
+<p>(<code>rm -rf</code> é do Linux e do macOS. No Windows, use <code>node -e "require('fs').rmSync('dist',{recursive:true,force:true})" &amp;&amp; tsc</code>, que funciona em todos.)</p>
+<hr>
+<h2>4. O que não vai para o git</h2>
+<p><code>node_modules</code> (é baixado com <code>npm install</code>) e <code>dist</code> (é gerado com <code>npm run build</code>) não devem ir para o repositório. Crie um <code>.gitignore</code>:</p>
+
+<pre class="file" data-file=".gitignore">node_modules/
+dist/</pre>
+
+<pre class="term" data-cwd="~/projeto">$ git init -q
+$ npx tsc
+$ git status --short --untracked-files=all
+?? .gitignore
+?? package-lock.json
+?? package.json
+?? src/index.ts
+?? tsconfig.json</pre>
+<p>O git só enxerga o que importa: o código-fonte e as configurações.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Arquivo fora do rootDir</strong>
+<p>Todo arquivo <code>.ts</code> do projeto precisa ficar dentro de <code>src/</code> (o <code>rootDir</code>). Um arquivo solto na raiz quebra a compilação:</p>
+
+<pre class="file" data-file="src/index.ts">console.log("ok");</pre>
+<pre class="file" data-file="config.ts">export const porta = 3000;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+error TS6059: File '/home/ana/projeto/config.ts' is not under 'rootDir' '/home/ana/projeto/src'. 'rootDir' is expected to contain all source files.
+  The file is in the program because:
+    Matched by default include pattern '**/*'
+  File is ECMAScript module because '/home/ana/projeto/package.json' has field "type" with value "module"</pre>
+<p>Mova o arquivo para <code>src/</code> (por exemplo, <code>src/config.ts</code>).</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Item</th><th>Prática</th></tr>
+<tr><td>pastas</td><td>por responsabilidade: <code>modelos/</code>, <code>servicos/</code>…</td></tr>
+<tr><td><code>index.ts</code> da pasta</td><td><code>export * from "./arquivo.js";</code></td></tr>
+<tr><td>tipos compartilhados</td><td><code>src/tipos.ts</code> + <code>import type</code></td></tr>
+<tr><td>scripts</td><td><code>build</code>, <code>start</code>, <code>check</code></td></tr>
+<tr><td>limpar</td><td><code>rm -rf dist &amp;&amp; tsc</code></td></tr>
+<tr><td><code>.gitignore</code></td><td><code>node_modules/</code> e <code>dist/</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Reexportar</h3><p>Complete a linha do <code>src/modelos/index.ts</code>:</p><div class="ex-code">export <input data-answer="*" aria-label="simbolo"> from "./produto.js";</div></div>
+<div class="exercise"><h3>2. Rodar</h3><p>Qual script dispensa o <code>run</code>? (só o nome)</p><div class="ex-code">npm <input data-answer="start" aria-label="script"></div></div>
+<div class="exercise"><h3>3. Ignorar</h3><p>Além de <code>node_modules/</code>, que pasta gerada vai no <code>.gitignore</code>?</p><div class="ex-code"><input data-answer="dist/|dist" aria-label="pasta"></div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Você apagou <code>src/velho.ts</code> e rodou <code>npx tsc</code>. O que acontece com <code>dist/velho.js</code>?</p>
+<label><input type="radio" name="q4"> É apagado automaticamente</label>
+<label><input type="radio" name="q4"> Vira um arquivo vazio</label>
+<label><input type="radio" name="q4"> Continua lá, até você limpar o <code>dist</code></label>
+<label><input type="radio" name="q4"> O <code>tsc</code> se recusa a compilar</label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. Para que serve o <code>index.ts</code> de uma pasta?</p>
+<label><input type="radio" name="q5"> Reexportar o que a pasta oferece, num endereço só</label>
+<label><input type="radio" name="q5"> É obrigatório para o <code>tsc</code> compilar a pasta</label>
+<label><input type="radio" name="q5"> Guardar a configuração</label>
+<label><input type="radio" name="q5"> Rodar os testes</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:from\s+[&quot;']\./modelos/index\.js[&quot;'];;semerro;;out:Ana: 0 pontos">
+<p class="try-task"><strong>Missão:</strong> crie os dois arquivos abaixo e, em <code>src/missao.ts</code>, importe <code>novoCliente</code> pelo barril <code>"./modelos/index.js"</code>. Saída esperada: <code>Ana: 0 pontos</code>.</p>
+<p class="try-task">Antes, crie também o arquivo <code>src/modelos/cliente.ts</code>:</p>
+<pre class="file" data-file="src/modelos/cliente.ts">export interface Cliente {
+  nome: string;
+  pontos: number;
+}
+export function novoCliente(nome: string): Cliente {
+  return { nome, pontos: 0 };
+}</pre>
+<p class="try-task">Antes, crie também o arquivo <code>src/modelos/index.ts</code>:</p>
+<pre class="file" data-file="src/modelos/index.ts">export * from "./cliente.js";</pre>
+<pre class="script" data-file="src/missao.ts">
+const c = { nome: "Ana", pontos: 0 };
+console.log(`${c.nome}: ${c.pontos} pontos`);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import { novoCliente } from "./modelos/index.js";
+const c = novoCliente("Ana");
+console.log(`${c.nome}: ${c.pontos} pontos`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Ana: 0 pontos
+</pre>
+</div>
+<div class="trycmd" data-goal="src:import\s+type\s*\{[^}]*\bPreco\b[^}]*\}\s*from\s*[&quot;']\./tipos\.js[&quot;'];;semerro;;out:BRL 9.90">
+<p class="try-task"><strong>Missão:</strong> crie <code>src/tipos.ts</code> abaixo e, em <code>src/missao.ts</code>, importe o tipo <code>Preco</code> com <code>import type</code> para tipar <code>p</code>. Saída esperada: <code>BRL 9.90</code>.</p>
+<p class="try-task">Antes, crie também o arquivo <code>src/tipos.ts</code>:</p>
+<pre class="file" data-file="src/tipos.ts">export type Moeda = "BRL" | "USD";
+export interface Preco {
+  valor: number;
+  moeda: Moeda;
+}</pre>
+<pre class="script" data-file="src/missao.ts">
+const p = { valor: 9.9, moeda: "BRL" };
+console.log(`${p.moeda} ${p.valor.toFixed(2)}`);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import type { Preco } from "./tipos.js";
+const p: Preco = { valor: 9.9, moeda: "BRL" };
+console.log(`${p.moeda} ${p.valor.toFixed(2)}`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+BRL 9.90
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Pastas por responsabilidade, com um <code>index.ts</code> que reexporta.</li>
+<li>Tipos compartilhados num arquivo, importados com <code>import type</code>.</li>
+<li>Scripts <code>build</code>, <code>start</code> e <code>check</code>; limpe o <code>dist</code> antes de compilar.</li>
+<li><code>node_modules/</code> e <code>dist/</code> ficam fora do git.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

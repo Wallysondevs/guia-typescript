@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto Final — Lista de Tarefas no terminal | Guia TypeScript</title>
+<meta name="description" content="Projeto final do Guia TypeScript: uma lista de tarefas de linha de comando com Node.js, do npm init ao programa pronto, usando tipos, unions discriminadas, type guards, módulos, node:fs e scripts npm, com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto Final: <span class="hl">Lista de Tarefas</span></h1>
+
+<p class="intro">Hora de juntar tudo. Vamos construir, do zero, um programa de terminal que guarda tarefas num arquivo JSON: adicionar, listar, concluir e remover. Ele usa quase tudo do guia: tipos e interfaces, unions de literais, unions discriminadas, type guards, <code>unknown</code>, módulos, <code>@types/node</code> e scripts do npm. Siga na ordem e digite você mesmo.</p>
+<div class="note"><strong>O que o programa vai fazer</strong><ul>
+<li><code>npm start -- adicionar "Comprar pão" alta</code></li>
+<li><code>npm start -- listar</code></li>
+<li><code>npm start -- concluir 1</code></li>
+<li><code>npm start -- remover 2</code></li>
+</ul></div>
+<hr>
+<h2>1. Criando o projeto</h2>
+
+<pre class="term" data-cwd="~">$ mkdir tarefas
+$ cd tarefas
+$ npm init -y
+Wrote to /home/ana/tarefas/package.json:
+
+{
+  "name": "tarefas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
+$ npm pkg set type=module
+$ npm i -D typescript @types/node@24
+
+added 4 packages, and audited 5 packages in 785ms
+
+found 0 vulnerabilities
+$ npx tsc --init
+
+Created a new tsconfig.json
+
+You can learn more at https://aka.ms/tsconfig</pre>
+<p>No <code>tsconfig.json</code>, faça as três mudanças que você já conhece: descomente <code>rootDir</code> e <code>outDir</code>, e troque <code>"types": []</code> por <code>"types": ["node"]</code> (vamos ler e gravar arquivos):</p>
+<pre class="file" data-file="tsconfig.json (trechos)">    "rootDir": "./src",
+    "outDir": "./dist",
+    …
+    "types": ["node"],</pre>
+
+<pre class="term" data-cwd="~/tarefas">$ npm pkg set scripts.build="tsc"
+$ npm pkg set scripts.start="node dist/index.js"</pre>
+<hr>
+<h2>2. Os tipos</h2>
+<p>Comece pelo “vocabulário” do programa. Repare no <code>Resultado</code>: uma union discriminada pelo campo <code>ok</code>, para as funções avisarem sucesso ou erro sem lançar exceções.</p>
+<pre class="file" data-file="src/tipos.ts">export type Prioridade = "baixa" | "media" | "alta";
+
+export interface Tarefa {
+  id: number;
+  titulo: string;
+  prioridade: Prioridade;
+  feita: boolean;
+}
+
+export type Resultado&lt;T&gt; =
+  | { ok: true; valor: T }
+  | { ok: false; erro: string };</pre>
+<hr>
+<h2>3. Ler e gravar o arquivo</h2>
+<p>O conteúdo de um JSON chega como <code>unknown</code> para nós: pode ter sido editado à mão, pode estar estragado. Um <strong>type guard</strong> confere a forma antes de confiar.</p>
+<pre class="file" data-file="src/armazenamento.ts">import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import type { Tarefa } from "./tipos.js";
+
+const ARQUIVO = "tarefas.json";
+
+function ehTarefa(x: unknown): x is Tarefa {
+  return (
+    typeof x === "object" &amp;&amp; x !== null &amp;&amp;
+    "id" in x &amp;&amp; typeof x.id === "number" &amp;&amp;
+    "titulo" in x &amp;&amp; typeof x.titulo === "string" &amp;&amp;
+    "prioridade" in x &amp;&amp; (x.prioridade === "baixa" || x.prioridade === "media" || x.prioridade === "alta") &amp;&amp;
+    "feita" in x &amp;&amp; typeof x.feita === "boolean"
+  );
+}
+
+export function carregar(): Tarefa[] {
+  if (!existsSync(ARQUIVO)) return [];
+  const dados: unknown = JSON.parse(readFileSync(ARQUIVO, "utf8"));
+  if (!Array.isArray(dados)) return [];
+  return dados.filter(ehTarefa);
+}
+
+export function salvar(lista: Tarefa[]): void {
+  writeFileSync(ARQUIVO, JSON.stringify(lista, null, 2) + "\n");
+}</pre>
+<hr>
+<h2>4. As regras</h2>
+<p>As funções não mexem no arquivo: recebem a lista e devolvem um <code>Resultado</code> com a lista nova. Isso deixa tudo fácil de testar.</p>
+<pre class="file" data-file="src/tarefas.ts">import type { Prioridade, Resultado, Tarefa } from "./tipos.js";
+
+const PRIORIDADES: readonly Prioridade[] = ["baixa", "media", "alta"];
+
+export function ehPrioridade(x: string): x is Prioridade {
+  return (PRIORIDADES as readonly string[]).includes(x);
+}
+
+export function adicionar(lista: Tarefa[], titulo: string, prioridade: Prioridade): Resultado&lt;Tarefa[]&gt; {
+  if (titulo.trim() === "") return { ok: false, erro: "o título não pode ser vazio" };
+  const id = Math.max(0, ...lista.map((t) =&gt; t.id)) + 1;
+  return { ok: true, valor: [...lista, { id, titulo: titulo.trim(), prioridade, feita: false }] };
+}
+
+export function concluir(lista: Tarefa[], id: number): Resultado&lt;Tarefa[]&gt; {
+  if (!lista.some((t) =&gt; t.id === id)) return { ok: false, erro: `tarefa ${id} não existe` };
+  return { ok: true, valor: lista.map((t) =&gt; (t.id === id ? { ...t, feita: true } : t)) };
+}
+
+export function remover(lista: Tarefa[], id: number): Resultado&lt;Tarefa[]&gt; {
+  const nova = lista.filter((t) =&gt; t.id !== id);
+  if (nova.length === lista.length) return { ok: false, erro: `tarefa ${id} não existe` };
+  return { ok: true, valor: nova };
+}
+
+export function formatar(t: Tarefa): string {
+  const marca = t.feita ? "[x]" : "[ ]";
+  let sinal: string;
+  switch (t.prioridade) {
+    case "alta":
+      sinal = "!!!";
+      break;
+    case "media":
+      sinal = "!!";
+      break;
+    case "baixa":
+      sinal = "!";
+      break;
+    default:
+      const nunca: never = t.prioridade;
+      throw new Error("prioridade inválida: " + nunca);
+  }
+  return `${marca} ${t.id}. ${t.titulo} ${sinal}`;
+}</pre>
+<hr>
+<h2>5. O ponto de entrada</h2>
+<p>O <code>index.ts</code> lê os argumentos do terminal (<code>process.argv</code>), chama a regra certa e trata o <code>Resultado</code>.</p>
+<pre class="file" data-file="src/index.ts">import { carregar, salvar } from "./armazenamento.js";
+import { adicionar, concluir, ehPrioridade, formatar, remover } from "./tarefas.js";
+import type { Resultado, Tarefa } from "./tipos.js";
+
+const [comando, ...args] = process.argv.slice(2);
+const lista = carregar();
+
+function aplicar(r: Resultado&lt;Tarefa[]&gt;, mensagem: string): void {
+  if (!r.ok) {
+    console.log("Erro: " + r.erro);
+    process.exitCode = 1;
+    return;
+  }
+  salvar(r.valor);
+  console.log(mensagem);
+}
+
+switch (comando) {
+  case "adicionar": {
+    const titulo = args[0] ?? "";
+    const prioridade = args[1] ?? "media";
+    if (!ehPrioridade(prioridade)) {
+      console.log(`Erro: prioridade "${prioridade}" inválida (use baixa, media ou alta)`);
+      process.exitCode = 1;
+      break;
+    }
+    aplicar(adicionar(lista, titulo, prioridade), `Adicionada: ${titulo}`);
+    break;
+  }
+  case "concluir":
+    aplicar(concluir(lista, Number(args[0])), `Concluída: ${args[0]}`);
+    break;
+  case "remover":
+    aplicar(remover(lista, Number(args[0])), `Removida: ${args[0]}`);
+    break;
+  case "listar":
+  case undefined:
+    if (lista.length === 0) console.log("Nenhuma tarefa. Que tal adicionar uma?");
+    for (const t of lista) console.log(formatar(t));
+    break;
+  default:
+    console.log(`Comando desconhecido: ${comando}`);
+    console.log("Use: adicionar, listar, concluir ou remover");
+    process.exitCode = 1;
+}</pre>
+<hr>
+<h2>6. Compilando e usando</h2>
+<pre class="term" data-cwd="~/tarefas">$ npm run build
+
+&gt; tarefas@1.0.0 build
+&gt; tsc
+$ ls dist
+armazenamento.d.ts
+armazenamento.d.ts.map
+armazenamento.js
+armazenamento.js.map
+index.d.ts
+index.d.ts.map
+index.js
+index.js.map
+tarefas.d.ts
+tarefas.d.ts.map
+tarefas.js
+tarefas.js.map
+tipos.d.ts
+tipos.d.ts.map
+tipos.js
+tipos.js.map</pre>
+<p>No <code>npm start</code>, os argumentos do programa vêm depois de <code>--</code>. Para a saída ficar mais limpa, usamos <code>-s</code> (silencioso), que esconde as linhas que o npm mostra antes de rodar:</p>
+<pre class="term" data-cwd="~/tarefas">$ npm start -s -- listar
+Nenhuma tarefa. Que tal adicionar uma?
+$ npm start -s -- adicionar "Comprar pão" alta
+Adicionada: Comprar pão
+$ npm start -s -- adicionar "Estudar generics"
+Adicionada: Estudar generics
+$ npm start -s -- adicionar "Regar as plantas" baixa
+Adicionada: Regar as plantas
+$ npm start -s -- listar
+[ ] 1. Comprar pão !!!
+[ ] 2. Estudar generics !!
+[ ] 3. Regar as plantas !
+$ npm start -s -- concluir 1
+Concluída: 1
+$ npm start -s -- remover 3
+Removida: 3
+$ npm start -s -- listar
+[x] 1. Comprar pão !!!
+[ ] 2. Estudar generics !!</pre>
+<p>E o arquivo que ficou gravado:</p>
+<pre class="file" data-file="tarefas.json">[
+  {
+    "id": 1,
+    "titulo": "Comprar pão",
+    "prioridade": "alta",
+    "feita": true
+  },
+  {
+    "id": 2,
+    "titulo": "Estudar generics",
+    "prioridade": "media",
+    "feita": false
+  }
+]</pre>
+<hr>
+<h2>7. Os erros também foram planejados</h2>
+<pre class="term" data-cwd="~/tarefas">$ npm start -s -- concluir 42
+Erro: tarefa 42 não existe
+$ npm start -s -- adicionar "Lavar a louça" urgente
+Erro: prioridade "urgente" inválida (use baixa, media ou alta)
+$ npm start -s -- adicionar ""
+Erro: o título não pode ser vazio
+$ npm start -s -- apagar 1
+Comando desconhecido: apagar
+Use: adicionar, listar, concluir ou remover</pre>
+<p>Cada caso de erro foi previsto nos tipos: <code>Resultado</code> obriga a tratar a falha, o type guard <code>ehPrioridade</code> barra a prioridade inválida e o <code>default</code> do <code>switch</code> pega comandos desconhecidos.</p>
+<h3>O compilador de guarda</h3>
+<p>Imagine que alguém acrescenta uma prioridade nova, <code>"urgente"</code>, em <code>tipos.ts</code>, e esquece do resto:</p>
+
+<pre class="file" data-file="src/tipos.ts (linha alterada)">export type Prioridade = "baixa" | "media" | "alta" | "urgente";</pre>
+<pre class="term" data-cwd="~/tarefas">$ npm run build -s
+src/tarefas.ts(40,13): error TS2322: Type '"urgente"' is not assignable to type 'never'.</pre>
+<p>O <code>never</code> do <code>formatar</code> apontou exatamente onde falta tratar o caso novo. Antes de o programa rodar, o TypeScript já mostrou o que falta. Esse é o espírito do guia inteiro.</p>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Argumentos</h3><p>Complete o que separa os argumentos do npm dos argumentos do programa:</p><div class="ex-code">npm start <input data-answer="--" aria-label="separador"> listar</div></div>
+<div class="exercise"><h3>2. O tipo do JSON</h3><p>Com que tipo o projeto recebe o resultado do <code>JSON.parse</code>, para forçar a conferência?</p><div class="ex-code">const dados: <input data-answer="unknown" aria-label="tipo"> = JSON.parse(texto);</div></div>
+<div class="exercise"><h3>3. Type guard</h3><p>Complete o retorno do type guard:</p><div class="ex-code">function ehTarefa(x: unknown): x <input data-answer="is" aria-label="palavra"> Tarefa</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Por que as funções devolvem <code>Resultado&lt;Tarefa[]&gt;</code> em vez de lançar erros?</p>
+<label><input type="radio" name="q4"> Porque TypeScript não tem <code>throw</code></label>
+<label><input type="radio" name="q4"> Para o tipo obrigar quem chama a tratar o caso de erro</label>
+<label><input type="radio" name="q4"> Para o programa ficar mais lento</label>
+<label><input type="radio" name="q4"> Porque o Node não aceita exceções</label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. O que acusou a prioridade <code>"urgente"</code> esquecida?</p>
+<label><input type="radio" name="q5"> O Node, ao rodar</label>
+<label><input type="radio" name="q5"> O arquivo <code>tarefas.json</code></label>
+<label><input type="radio" name="q5"> O npm</label>
+<label><input type="radio" name="q5"> A checagem com <code>never</code> no <code>switch</code> do <code>formatar</code></label></div>
+<hr>
+<h2>Missões</h2>
+<p>As missões usam o projeto do guia (com <code>src/missao.ts</code>), recebendo o <code>src/tipos.ts</code> do projeto final.</p>
+<div class="trycmd" data-goal="src:function\s+contarPendentes\s*\(\s*\w+\s*:\s*Tarefa\[\]\s*\)\s*:\s*number;;semerro;;out:Pendentes: 2">
+<p class="try-task"><strong>Missão:</strong> crie <code>src/tipos.ts</code> abaixo e escreva <code>function contarPendentes(lista: Tarefa[]): number</code>, que conta as tarefas com <code>feita: false</code>. Saída esperada: <code>Pendentes: 2</code>.</p>
+<p class="try-task">Antes, crie também o arquivo <code>src/tipos.ts</code>:</p>
+<pre class="file" data-file="src/tipos.ts">export type Prioridade = "baixa" | "media" | "alta";
+export interface Tarefa {
+  id: number;
+  titulo: string;
+  prioridade: Prioridade;
+  feita: boolean;
+}</pre>
+<pre class="script" data-file="src/missao.ts">
+import type { Tarefa } from "./tipos.js";
+
+const lista: Tarefa[] = [
+  { id: 1, titulo: "Comprar pão", prioridade: "alta", feita: true },
+  { id: 2, titulo: "Estudar generics", prioridade: "media", feita: false },
+  { id: 3, titulo: "Regar as plantas", prioridade: "baixa", feita: false },
+];
+// escreva contarPendentes aqui
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import type { Tarefa } from "./tipos.js";
+
+const lista: Tarefa[] = [
+  { id: 1, titulo: "Comprar pão", prioridade: "alta", feita: true },
+  { id: 2, titulo: "Estudar generics", prioridade: "media", feita: false },
+  { id: 3, titulo: "Regar as plantas", prioridade: "baixa", feita: false },
+];
+
+function contarPendentes(lista: Tarefa[]): number {
+  return lista.filter((t) =&gt; !t.feita).length;
+}
+console.log("Pendentes: " + contarPendentes(lista));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Pendentes: 2
+</pre>
+</div>
+<div class="trycmd" data-goal="src:Record\s*&lt;\s*Prioridade\s*,\s*number\s*&gt;;;semerro;;out:alta: 1, media: 2, baixa: 0">
+<p class="try-task"><strong>Missão:</strong> complete a função <code>porPrioridade</code>, que devolve um <code>Record&lt;Prioridade, number&gt;</code> com quantas tarefas há de cada prioridade. Saída esperada: <code>alta: 1, media: 2, baixa: 0</code>.</p>
+<p class="try-task">Antes, crie também o arquivo <code>src/tipos.ts</code>:</p>
+<pre class="file" data-file="src/tipos.ts">export type Prioridade = "baixa" | "media" | "alta";
+export interface Tarefa {
+  id: number;
+  titulo: string;
+  prioridade: Prioridade;
+  feita: boolean;
+}</pre>
+<pre class="script" data-file="src/missao.ts">
+import type { Prioridade, Tarefa } from "./tipos.js";
+
+const lista: Tarefa[] = [
+  { id: 1, titulo: "Comprar pão", prioridade: "alta", feita: false },
+  { id: 2, titulo: "Estudar generics", prioridade: "media", feita: false },
+  { id: 3, titulo: "Ler um livro", prioridade: "media", feita: true },
+];
+
+function porPrioridade(lista: Tarefa[]) {
+  return {};
+}
+const c = porPrioridade(lista);
+console.log(`alta: ${c.alta}, media: ${c.media}, baixa: ${c.baixa}`);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import type { Prioridade, Tarefa } from "./tipos.js";
+
+const lista: Tarefa[] = [
+  { id: 1, titulo: "Comprar pão", prioridade: "alta", feita: false },
+  { id: 2, titulo: "Estudar generics", prioridade: "media", feita: false },
+  { id: 3, titulo: "Ler um livro", prioridade: "media", feita: true },
+];
+
+function porPrioridade(lista: Tarefa[]): Record&lt;Prioridade, number&gt; {
+  const contagem: Record&lt;Prioridade, number&gt; = { alta: 0, media: 0, baixa: 0 };
+  for (const t of lista) contagem[t.prioridade]++;
+  return contagem;
+}
+const c = porPrioridade(lista);
+console.log(`alta: ${c.alta}, media: ${c.media}, baixa: ${c.baixa}`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+alta: 1, media: 2, baixa: 0
+</pre>
+</div>
+<hr>
+<h2>Parabéns!</h2>
+<p>Você saiu do “o que é TypeScript?” para um programa completo, tipado de ponta a ponta. Para continuar: acrescente uma data de entrega às tarefas, um comando <code>editar</code>, ou ordene a listagem pela prioridade. Para cada ideia, comece pelos <strong>tipos</strong> e deixe o compilador mostrar o que falta mudar.</p>
+<h2>Resumo</h2>
+<ul>
+<li>Projeto do zero: <code>npm init</code>, <code>typescript</code>, <code>@types/node</code>, <code>tsc --init</code>, scripts.</li>
+<li>Tipos primeiro: <code>Prioridade</code>, <code>Tarefa</code>, <code>Resultado</code>.</li>
+<li>Dados de fora (JSON) entram como <code>unknown</code> e passam por type guards.</li>
+<li><code>never</code> no <code>switch</code> protege contra casos novos esquecidos.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

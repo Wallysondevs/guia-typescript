@@ -84,7 +84,7 @@ function caixasDe(html) {
     const solucao = /<pre\s+class="solucao"[^>]*>([\s\S]*?)<\/pre>/.exec(chunk);
     const saidaOk = /<pre\s+class="saida-ok"[^>]*>([\s\S]*?)<\/pre>/.exec(chunk);
     out.push({
-      goal: gm ? gm[1].replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&") : "",
+      goal: gm ? decode(gm[1]) : "",
       script: script ? trim(decode(script[1])) : "",
       solucao: solucao ? trim(decode(solucao[1])) : "",
       temSol: !!solucao,
@@ -95,7 +95,7 @@ function caixasDe(html) {
 }
 
 function decode(s) {
-  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"');
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 }
 
 function soSrc(goal) {

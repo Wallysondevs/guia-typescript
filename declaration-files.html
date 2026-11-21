@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquivos de declaração (.d.ts) | Guia TypeScript</title>
+<meta name="description" content="Arquivos .d.ts no TypeScript: o que o tsc gera com declaration, como escrever declarações para um arquivo JavaScript, declare function, declare global e declare module, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Arquivos de <span class="hl">declaração</span> (.d.ts)</h1>
+
+<p class="intro">Um arquivo <code>.d.ts</code> só tem <strong>tipos</strong>, sem código que roda. Ele descreve “o que existe e com que forma” para o compilador. É assim que pacotes em JavaScript ganham tipos, e é o que o <code>tsc</code> gera para o seu próprio código quando a opção <code>declaration</code> está ligada.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Ler o <code>.d.ts</code> que o <code>tsc</code> gera.</li>
+<li>Escrever um <code>.d.ts</code> para um arquivo JavaScript.</li>
+<li><code>declare function</code>, <code>declare const</code> e <code>declare global</code>.</li>
+<li><code>declare module</code> como saída de emergência.</li>
+</ul></div>
+<hr>
+<h2>1. O .d.ts que o tsc gera</h2>
+<p>O nosso <code>tsconfig.json</code> tem <code>"declaration": true</code>. Compile um arquivo e veja o que aparece em <code>dist/</code>:</p>
+<pre class="file" data-file="src/calc.ts">export type Operacao = "soma" | "produto";
+
+export function calcular(op: Operacao, a: number, b: number): number {
+  const resultado = op === "soma" ? a + b : a * b;
+  return resultado;
+}
+
+export const VERSAO = "1.0";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+$ ls dist
+calc.d.ts
+calc.d.ts.map
+calc.js
+calc.js.map</pre>
+<pre class="file" data-file="dist/calc.d.ts">export type Operacao = "soma" | "produto";
+export declare function calcular(op: Operacao, a: number, b: number): number;
+export declare const VERSAO = "1.0";
+//# sourceMappingURL=calc.d.ts.map</pre>
+<p>Sumiu todo o corpo da função: ficou só a “capa” (nomes, parâmetros e retornos). <code>declare</code> quer dizer “isto existe em algum lugar; confie”. Quem publica uma biblioteca em TypeScript entrega os <code>.js</code> (para rodar) e os <code>.d.ts</code> (para os tipos).</p>
+<hr>
+<h2>2. Tipando um arquivo JavaScript</h2>
+<p>Imagine um arquivo JavaScript antigo, fora da pasta <code>src</code>, que você não quer (ou não pode) reescrever:</p>
+
+<pre class="file" data-file="lib/medidas.js">export function cmParaPol(cm) {
+  return cm / 2.54;
+}
+export const UNIDADES = ["cm", "pol"];</pre>
+<pre class="file" data-file="src/main.ts">import { cmParaPol } from "../lib/medidas.js";
+console.log(cmParaPol(254).toFixed(1));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/main.ts(1,27): error TS7016: Could not find a declaration file for module '../lib/medidas.js'. '/home/ana/projeto/lib/medidas.js' implicitly has an 'any' type.</pre>
+<p>Crie, <strong>ao lado</strong> do <code>.js</code> e com o mesmo nome, o arquivo de declaração:</p>
+<pre class="file" data-file="lib/medidas.d.ts">export declare function cmParaPol(cm: number): number;
+export declare const UNIDADES: string[];</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/main.js
+100.0</pre>
+<p>O TypeScript achou <code>lib/medidas.d.ts</code> para o import de <code>../lib/medidas.js</code>. E agora os usos errados são pegos:</p>
+<pre class="file" data-file="src/main.ts">import { cmParaPol, UNIDADES } from "../lib/medidas.js";
+console.log(cmParaPol("254"));
+UNIDADES.push(3);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/main.ts(2,23): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+src/main.ts(3,15): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.</pre>
+<div class="tip"><strong>O .d.ts não confere o .js</strong><p>O compilador confia no que o <code>.d.ts</code> diz. Se a declaração mentir (dizer que devolve <code>string</code> quando devolve número), o erro só aparece rodando. Escreva com cuidado.</p></div>
+<hr>
+<h2>3. declare global: variáveis globais</h2>
+<p>Às vezes um valor global é criado por outra parte do sistema (um script, uma configuração). Para o TypeScript aceitar, declare:</p>
+
+<pre class="file" data-file="src/global.ts">declare global {
+  var configuracao: { modo: "dev" | "prod"; versao: number };
+}
+
+globalThis.configuracao = { modo: "dev", versao: 3 };
+console.log(configuracao.modo, configuracao.versao);
+
+configuracao.modo = "teste";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/global.ts(8,1): error TS2322: Type '"teste"' is not assignable to type '"dev" | "prod"'.</pre>
+<p>O <code>declare global { var … }</code> acrescenta a variável ao escopo global; daí em diante ela é conferida como qualquer outra (por isso <code>"teste"</code> foi recusado). Dentro de <code>declare global</code> use <code>var</code>, não <code>let</code>/<code>const</code>.</p>
+<hr>
+<h2>4. declare module: o atalho para pacotes sem tipos</h2>
+<p>Quando um pacote não tem tipos nem <code>@types</code>, o <code>TS7016</code> sugere <code>declare module 'x';</code>. Veja o efeito com um módulo inventado:</p>
+
+<pre class="file" data-file="src/tipos/pacotes.d.ts">declare module "pacote-antigo";
+
+declare module "pacote-pequeno" {
+  export function saudar(nome: string): string;
+}</pre>
+<pre class="file" data-file="src/uso.ts">import qualquer from "pacote-antigo";
+import { saudar } from "pacote-pequeno";
+
+qualquer.isso.nao.existe();
+saudar(42);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/uso.ts(5,8): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.</pre>
+<p>O <code>"pacote-antigo"</code>, declarado sem corpo, virou <code>any</code>: nada é conferido (a linha absurda passou). O <code>"pacote-pequeno"</code>, com corpo, é conferido normalmente. Prefira sempre declarar o que você usa.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Colocar código num .d.ts</strong>
+
+<pre class="file" data-file="src/errado.d.ts">export function dobro(n: number): number {
+  return n * 2;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc</pre>
+<p>Nenhum erro?! É o <code>"skipLibCheck": true</code> do <code>tsconfig.json</code>: para compilar mais rápido, ele pula a conferência de <strong>todos</strong> os <code>.d.ts</code>, inclusive os seus. Para conferir os seus de vez em quando, desligue só nesta execução:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --skipLibCheck false
+src/errado.d.ts(1,42): error TS1183: An implementation cannot be declared in ambient contexts.</pre>
+<p>Em <code>.d.ts</code> não há implementação: escreva só a assinatura, terminada em <code>;</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>"declaration": true</code></td><td>o <code>tsc</code> gera <code>.d.ts</code> do seu código</td></tr>
+<tr><td><code>export declare function f(x: T): R;</code></td><td>declara uma função que existe no <code>.js</code></td></tr>
+<tr><td><code>x.d.ts</code> ao lado de <code>x.js</code></td><td>tipos de um arquivo JavaScript</td></tr>
+<tr><td><code>declare global { var g: T }</code></td><td>variável global</td></tr>
+<tr><td><code>declare module "p";</code></td><td>pacote vira <code>any</code> (emergência)</td></tr>
+<tr><td><code>declare module "p" { … }</code></td><td>tipos de um pacote, escritos por você</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. A extensão</h3><p>Complete a extensão de um arquivo de declaração:</p><div class="ex-code">medidas<input data-answer=".d.ts" aria-label="extensao"></div></div>
+<div class="exercise"><h3>2. Declarar</h3><p>Complete:</p><div class="ex-code">export <input data-answer="declare" aria-label="palavra"> function cmParaPol(cm: number): number;</div></div>
+<div class="exercise"><h3>3. Global</h3><p>Complete a palavra usada para variáveis dentro de <code>declare global</code>:</p><div class="ex-code">declare global { <input data-answer="var" aria-label="palavra"> modo: string }</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. O que tem dentro de um <code>.d.ts</code>?</p>
+<label><input type="radio" name="q4"> Código que roda e tipos</label>
+<label><input type="radio" name="q4"> Só tipos e assinaturas, sem implementação</label>
+<label><input type="radio" name="q4"> Só JavaScript</label>
+<label><input type="radio" name="q4"> Configurações do compilador</label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Qual o efeito de <code>declare module "x";</code> sem corpo?</p>
+<label><input type="radio" name="q5"> Instala o pacote</label>
+<label><input type="radio" name="q5"> Gera tipos corretos automaticamente</label>
+<label><input type="radio" name="q5"> Dá erro de compilação</label>
+<label><input type="radio" name="q5"> Tudo que vem do pacote vira <code>any</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:export\s+declare\s+function\s+calcularFrete\s*\(\s*\w+\s*:\s*number\s*,\s*\w+\s*:\s*boolean\s*\)\s*:\s*number;;semerro;;out:Frete: R$ 35.00" data-cmd="npx tsc &amp;&amp; node dist/main.js">
+<p class="try-task"><strong>Missão:</strong> crie <code>lib/frete.js</code> e <code>src/main.ts</code> abaixo. Depois escreva <code>lib/frete.d.ts</code> declarando <code>calcularFrete(pesoKg: number, expresso: boolean): number</code>. Rode com <code>npx tsc &amp;&amp; node dist/main.js</code>. Saída esperada: <code>Frete: R$ 35.00</code>.</p>
+<p class="try-task">Antes, crie também o arquivo <code>lib/frete.js</code>:</p>
+<pre class="file" data-file="lib/frete.js">export function calcularFrete(pesoKg, expresso) {
+  return pesoKg * 5 + (expresso ? 20 : 0);
+}</pre>
+<p class="try-task">Antes, crie também o arquivo <code>src/main.ts</code>:</p>
+<pre class="file" data-file="src/main.ts">import { calcularFrete } from "../lib/frete.js";
+const valor: number = calcularFrete(3, true);
+console.log("Frete: R$ " + valor.toFixed(2));</pre>
+<pre class="script" data-file="lib/frete.d.ts">
+// escreva aqui a declaração de calcularFrete
+</pre>
+<pre class="solucao" data-file="lib/frete.d.ts">
+export declare function calcularFrete(pesoKg: number, expresso: boolean): number;
+</pre>
+<pre class="saida-ok" data-file="lib/frete.d.ts" hidden>
+Frete: R$ 35.00
+</pre>
+</div>
+<div class="trycmd" data-goal="src:declare\s+global;;src:var\s+usuarioAtual\s*:;;semerro;;out:Logado: ana">
+<p class="try-task"><strong>Missão:</strong> declare a variável global <code>usuarioAtual</code> (com <code>declare global { var usuarioAtual: string }</code>) para o código compilar e mostrar <code>Logado: ana</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+globalThis.usuarioAtual = "ana";
+console.log("Logado: " + usuarioAtual);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+declare global {
+  var usuarioAtual: string;
+}
+globalThis.usuarioAtual = "ana";
+console.log("Logado: " + usuarioAtual);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Logado: ana
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>.d.ts</code> descreve tipos, sem código que roda.</li>
+<li>Com <code>declaration</code>, o <code>tsc</code> gera <code>.d.ts</code> do seu código.</li>
+<li>Um <code>x.d.ts</code> ao lado de <code>x.js</code> dá tipos ao JavaScript.</li>
+<li><code>declare global</code> para globais; <code>declare module</code> para pacotes.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

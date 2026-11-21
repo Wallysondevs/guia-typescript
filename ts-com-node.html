@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rodando TypeScript direto no Node.js | Guia TypeScript</title>
+<meta name="description" content="Rodar arquivos .ts direto com node (type stripping do Node 24), o que é sintaxe apagável, erasableSyntaxOnly, imports com extensão .ts, allowImportingTsExtensions, rewriteRelativeImportExtensions e scripts npm, com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>TypeScript direto no <span class="hl">Node.js</span></h1>
+
+<p class="intro">Até aqui o caminho foi sempre <code>npx tsc</code> e depois <code>node dist/arquivo.js</code>. O Node 24 consegue rodar um <code>.ts</code> <strong>diretamente</strong>: ele apaga as anotações de tipo e executa o que sobra. É ótimo para scripts e para desenvolver rápido, mas tem regras. Vamos ver o que funciona, o que não funciona e como deixar o <code>tsc</code> de guarda.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li><code>node arquivo.ts</code> e o que o Node faz com os tipos.</li>
+<li>Por que o Node <strong>não confere</strong> tipos.</li>
+<li>Sintaxe “apagável” e a opção <code>erasableSyntaxOnly</code>.</li>
+<li>Imports com <code>.ts</code> e as opções que o <code>tsc</code> precisa.</li>
+<li>Scripts no <code>package.json</code> para o dia a dia.</li>
+</ul></div>
+<hr>
+<h2>1. node arquivo.ts</h2>
+<pre class="file" data-file="src/ola.ts">type Pessoa = { nome: string; idade: number };
+
+const p: Pessoa = { nome: "Ana", idade: 30 };
+function apresentar(x: Pessoa): string {
+  return `${x.nome} tem ${x.idade} anos`;
+}
+console.log(apresentar(p));</pre>
+<pre class="term" data-cwd="~/projeto">$ node --version
+v24.22.1
+$ node src/ola.ts
+Ana tem 30 anos
+$ ls
+node_modules
+package-lock.json
+package.json
+src
+tsconfig.json</pre>
+<p>Rodou sem <code>tsc</code> e sem pasta <code>dist</code>. O Node trocou as anotações (<code>: Pessoa</code>, <code>type Pessoa = …</code>) por espaços e executou o JavaScript que sobrou.</p>
+<hr>
+<h2>2. O Node não confere tipos</h2>
+
+<pre class="file" data-file="src/errado.ts">const preco: number = "dez";
+console.log("Preço:", preco);</pre>
+<pre class="term" data-cwd="~/projeto">$ node src/errado.ts
+Preço: dez
+$ npx tsc --noEmit
+src/errado.ts(1,7): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+<p>O Node rodou um código com erro de tipo sem reclamar: ele <strong>apaga</strong> os tipos, não os confere. Quem confere continua sendo o <code>tsc</code>. Por isso o par do dia a dia é: <code>node</code> para rodar, <code>npx tsc --noEmit</code> para conferir.</p>
+<hr>
+<h2>3. Só sintaxe apagável</h2>
+<p>Algumas coisas do TypeScript geram código JavaScript (não dá para só apagar): <code>enum</code>, <code>namespace</code> com código e as <strong>propriedades de parâmetro</strong> do construtor (<code>constructor(private nome: string)</code>). O Node não aceita:</p>
+
+<pre class="file" data-file="src/enum.ts">enum Cor {
+  Azul,
+  Verde,
+}
+console.log(Cor.Verde);</pre>
+<pre class="term" data-cwd="~/projeto">$ node src/enum.ts
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///home/ana/projeto/src/enum.ts:1
+  &gt; enum Cor {
+      Azul,
+      Verde,
+  &gt; }
+    console.log(Cor.Verde);
+
+SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode
+    at parseTypeScript (node:internal/modules/typescript:68:40)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.&lt;anonymous&gt; (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:438:20)
+    at afterLoad (node:internal/modules/esm/loader:506:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:511:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12) {
+  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.22.1</pre>
+<p>A opção <code>erasableSyntaxOnly</code> do <code>tsc</code> avisa disso antes de rodar:</p>
+
+
+<pre class="file" data-file="src/conta.ts">class Conta {
+  constructor(private titular: string) {}
+  mostrar() {
+    return this.titular;
+  }
+}
+console.log(new Conta("Ana").mostrar());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --noEmit --erasableSyntaxOnly
+src/conta.ts(2,15): error TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+src/enum.ts(1,6): error TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.</pre>
+<p>As trocas: no lugar do <code>enum</code>, uma union de literais ou um objeto <code>as const</code> (aula de enums); no lugar da propriedade de parâmetro, um campo comum:</p>
+
+<pre class="file" data-file="src/apagavel.ts">const Cor = { Azul: 0, Verde: 1 } as const;
+type Cor = (typeof Cor)[keyof typeof Cor];
+
+class Conta {
+  titular: string;
+  constructor(titular: string) {
+    this.titular = titular;
+  }
+}
+
+const c: Cor = Cor.Verde;
+console.log(c, new Conta("Ana").titular);</pre>
+<pre class="term" data-cwd="~/projeto">$ node src/apagavel.ts
+1 Ana
+$ npx tsc --noEmit --erasableSyntaxOnly</pre>
+<hr>
+<h2>4. Imports com .ts</h2>
+<p>Rodando direto, não existe <code>dist/</code> nem <code>.js</code>: o import tem que apontar para o <code>.ts</code> de verdade.</p>
+
+<pre class="file" data-file="src/util.ts">export const dobro = (n: number): number =&gt; n * 2;</pre>
+<pre class="file" data-file="src/main.ts">import { dobro } from "./util.ts";
+console.log(dobro(21));</pre>
+<pre class="term" data-cwd="~/projeto">$ node src/main.ts
+42
+$ npx tsc
+src/main.ts(1,23): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.</pre>
+<p>O Node aceitou; o <code>tsc</code>, por padrão, não. Há duas opções para o <code>tsc</code>:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --noEmit --allowImportingTsExtensions
+$ npx tsc --rewriteRelativeImportExtensions &amp;&amp; node dist/main.js
+42</pre>
+<pre class="file" data-file="dist/main.js">import { dobro } from "./util.js";
+console.log(dobro(21));
+//# sourceMappingURL=main.js.map</pre>
+<dl class="anatomy">
+<dt><code>allowImportingTsExtensions</code></dt><dd>aceita <code>.ts</code> nos imports, mas só junto com <code>noEmit</code> (o <code>tsc</code> só confere; quem roda é o Node).</dd>
+<dt><code>rewriteRelativeImportExtensions</code></dt><dd>aceita e, ao gerar o JS, <strong>reescreve</strong> <code>./util.ts</code> para <code>./util.js</code>. Serve para quem roda direto e também gera <code>dist/</code>.</dd>
+</dl>
+<hr>
+<h2>5. Scripts no package.json</h2>
+<p>Para não decorar comandos, grave-os como scripts do npm:</p>
+
+<pre class="file" data-file="src/main.ts">const agora = "2026-11-21";
+console.log("Rodando em", agora);</pre>
+<pre class="term" data-cwd="~/projeto">$ npm pkg set scripts.dev="node src/main.ts"
+$ npm pkg set scripts.check="tsc --noEmit"
+$ npm run dev
+
+&gt; projeto@1.0.0 dev
+&gt; node src/main.ts
+
+Rodando em 2026-11-21
+$ npm run check
+
+&gt; projeto@1.0.0 check
+&gt; tsc --noEmit</pre>
+<p>Dentro de scripts do npm, <code>tsc</code> funciona sem <code>npx</code>, porque o npm já procura em <code>node_modules/.bin</code>.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Import sem extensão</strong>
+
+<pre class="file" data-file="src/util.ts">export const dobro = (n: number): number =&gt; n * 2;</pre>
+<pre class="file" data-file="src/main.ts">import { dobro } from "./util";
+console.log(dobro(21));</pre>
+<pre class="term" data-cwd="~/projeto">$ node src/main.ts
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/ana/projeto/src/util' imported from /home/ana/projeto/src/main.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:381:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/ana/projeto/src/util'
+}
+
+Node.js v24.22.1</pre>
+<p>Nos módulos do Node, o caminho é sempre o nome completo do arquivo: <code>"./util.ts"</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Comando / opção</th><th>Para quê</th></tr>
+<tr><td><code>node src/x.ts</code></td><td>roda direto (apaga os tipos, não confere)</td></tr>
+<tr><td><code>npx tsc --noEmit</code></td><td>confere os tipos</td></tr>
+<tr><td><code>erasableSyntaxOnly</code></td><td>proíbe <code>enum</code>, propriedades de parâmetro…</td></tr>
+<tr><td><code>allowImportingTsExtensions</code></td><td>aceita <code>import "./x.ts"</code> (com <code>noEmit</code>)</td></tr>
+<tr><td><code>rewriteRelativeImportExtensions</code></td><td>aceita <code>.ts</code> e reescreve para <code>.js</code> no <code>dist</code></td></tr>
+<tr><td><code>npm pkg set scripts.dev="…"</code></td><td>cria um script; rode com <code>npm run dev</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Rodar direto</h3><p>Complete o comando:</p><div class="ex-code"><input data-answer="node" aria-label="comando"> src/ola.ts</div></div>
+<div class="exercise"><h3>2. Só conferir</h3><p>Complete:</p><div class="ex-code">npx tsc --<input data-answer="noEmit" aria-label="opcao"></div></div>
+<div class="exercise"><h3>3. O import</h3><p>Rodando com <code>node src/main.ts</code>, complete o caminho do import de <code>src/util.ts</code>:</p><div class="ex-code">import { dobro } from "./util<input data-answer=".ts" aria-label="extensao">";</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. <code>node src/x.ts</code> com um erro de tipo no arquivo…</p>
+<label><input type="radio" name="q4"> …mostra o erro e para</label>
+<label><input type="radio" name="q4"> …roda mesmo assim, porque o Node só apaga os tipos</label>
+<label><input type="radio" name="q4"> …chama o <code>tsc</code> sozinho</label>
+<label><input type="radio" name="q4"> …gera a pasta <code>dist</code></label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Qual destes o Node <strong>não</strong> consegue rodar direto?</p>
+<label><input type="radio" name="q5"> <code>type Id = number</code></label>
+<label><input type="radio" name="q5"> <code>interface Pessoa { nome: string }</code></label>
+<label><input type="radio" name="q5"> <code>const x: string = "a"</code></label>
+<label><input type="radio" name="q5"> <code>enum Cor { Azul }</code></label></div>
+<hr>
+<h2>Missões</h2>
+<p>As missões rodam direto com <code>node src/missao.ts</code>.</p>
+<div class="trycmd" data-goal="src:as\s+const;;semerro;;out:Status: 2" data-cmd="node src/missao.ts">
+<p class="try-task"><strong>Missão:</strong> o Node não roda <code>enum</code>. Troque o <code>enum Status</code> por um objeto <code>as const</code> com os mesmos valores e mantenha a saída <code>Status: 2</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+enum Status {
+  Novo = 1,
+  Pago = 2,
+}
+console.log("Status: " + Status.Pago);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const Status = { Novo: 1, Pago: 2 } as const;
+console.log("Status: " + Status.Pago);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Status: 2
+</pre>
+</div>
+<div class="trycmd" data-goal="src:from\s+[&quot;']\./taxas\.ts[&quot;'];;semerro;;out:Com taxa: 110.00" data-cmd="node src/missao.ts">
+<p class="try-task"><strong>Missão:</strong> crie <code>src/taxas.ts</code> abaixo e corrija o import de <code>src/missao.ts</code> para rodar com <code>node</code>. Saída esperada: <code>Com taxa: 110.00</code>.</p>
+<p class="try-task">Antes, crie também o arquivo <code>src/taxas.ts</code>:</p>
+<pre class="file" data-file="src/taxas.ts">export function comTaxa(valor: number): number {
+  return valor * 1.1;
+}</pre>
+<pre class="script" data-file="src/missao.ts">
+import { comTaxa } from "./taxas";
+console.log("Com taxa: " + comTaxa(100).toFixed(2));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import { comTaxa } from "./taxas.ts";
+console.log("Com taxa: " + comTaxa(100).toFixed(2));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Com taxa: 110.00
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>O Node 24 roda <code>.ts</code> direto, apagando os tipos.</li>
+<li>Ele não confere tipos: use <code>npx tsc --noEmit</code>.</li>
+<li>Só sintaxe apagável: nada de <code>enum</code> ou propriedades de parâmetro (<code>erasableSyntaxOnly</code> avisa).</li>
+<li>Imports com <code>.ts</code>; no <code>tsc</code>, <code>allowImportingTsExtensions</code> ou <code>rewriteRelativeImportExtensions</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

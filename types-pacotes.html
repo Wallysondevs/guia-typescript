@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tipos de pacotes npm — @types e pacotes com tipos próprios | Guia TypeScript</title>
+<meta name="description" content="Como usar pacotes npm com TypeScript: o erro TS7016, instalar @types/lodash e @types/node, a opção types do tsconfig, o erro TS2591 e como saber se um pacote já traz tipos, com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Tipos de <span class="hl">pacotes</span> npm</h1>
+
+<p class="intro">Boa parte do seu código vai usar pacotes do npm. Alguns já vêm com tipos (trazem os próprios arquivos <code>.d.ts</code>). Outros foram escritos em JavaScript puro, e os tipos ficam num pacote separado, mantido pela comunidade no projeto <strong>DefinitelyTyped</strong>, com nome <code>@types/nome-do-pacote</code>. Nesta aula você instala os dois casos de verdade.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>O erro <code>TS7016</code> e como resolvê-lo com <code>@types</code>.</li>
+<li>Instalar tipos como <code>devDependencies</code>.</li>
+<li>Usar módulos do Node (<code>node:fs</code>, <code>process</code>) com <code>@types/node</code>.</li>
+<li>A opção <code>types</code> do <code>tsconfig.json</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Um pacote sem tipos: lodash</h2>
+<p>O <code>lodash</code> é uma biblioteca famosa de utilidades, escrita em JavaScript. Instale e use:</p>
+
+<pre class="term" data-cwd="~/projeto">$ npm i lodash
+
+added 1 package, and audited 4 packages in 365ms
+
+found 0 vulnerabilities</pre>
+<pre class="file" data-file="src/lodash.ts">import _ from "lodash";
+console.log(_.chunk([1, 2, 3, 4, 5], 2));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/lodash.ts(1,15): error TS7016: Could not find a declaration file for module 'lodash'. '/home/ana/projeto/node_modules/lodash/lodash.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/lodash` if it exists or add a new declaration (.d.ts) file containing `declare module 'lodash';`</pre>
+<p>O <code>TS7016</code> diz: o pacote existe, mas não tem arquivo de declaração, então tudo nele seria <code>any</code>. A própria mensagem sugere o caminho:</p>
+<pre class="term" data-cwd="~/projeto">$ npm i -D @types/lodash
+
+added 1 package, and audited 5 packages in 327ms
+
+found 0 vulnerabilities
+$ npx tsc &amp;&amp; node dist/lodash.js
+[ [ 1, 2 ], [ 3, 4 ], [ 5 ] ]</pre>
+<dl class="anatomy">
+<dt><code>npm i lodash</code></dt><dd>o código do pacote: vai em <code>dependencies</code>, porque o programa precisa dele rodando.</dd>
+<dt><code>npm i -D @types/lodash</code></dt><dd>só os tipos: vão em <code>devDependencies</code> (<code>-D</code>), porque só o compilador usa.</dd>
+</dl>
+<pre class="term" data-cwd="~/projeto">$ npm pkg get dependencies devDependencies
+{
+  "dependencies": {
+    "lodash": "^4.18.1"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.27",
+    "typescript": "^7.0.2"
+  }
+}</pre>
+<hr>
+<h2>2. Agora o TypeScript conhece o lodash</h2>
+
+<pre class="file" data-file="src/lodash.ts">import _ from "lodash";
+
+const grupos: string[] = _.chunk([1, 2, 3], 2);
+console.log(_.capitalize(123));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/lodash.ts(3,7): error TS2322: Type 'number[][]' is not assignable to type 'string[]'.
+  Type 'number[]' is not assignable to type 'string'.
+src/lodash.ts(4,26): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.</pre>
+<p>Com os tipos, o compilador sabe que <code>_.chunk</code> devolve <code>number[][]</code> e que <code>_.capitalize</code> espera texto.</p>
+<hr>
+<h2>3. Os módulos do Node: @types/node</h2>
+<p>Ler arquivos, ver a versão do Node, ler variáveis de ambiente: tudo isso vem do Node, e os tipos dele também ficam num pacote <code>@types</code>:</p>
+
+<pre class="file" data-file="src/node.ts">import { readFileSync } from "node:fs";
+
+const pacote = JSON.parse(readFileSync("package.json", "utf8"));
+console.log(pacote.name, process.version);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/node.ts(1,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/node.ts(4,26): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.</pre>
+<p>A mensagem pede duas coisas. Primeiro, instalar os tipos. Use a versão que combina com o seu Node (aqui, a 24):</p>
+<pre class="term" data-cwd="~/projeto">$ npm i -D @types/node@24
+
+added 2 packages, and audited 5 packages in 422ms
+
+found 0 vulnerabilities
+$ npx tsc
+src/node.ts(1,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/node.ts(4,26): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.</pre>
+<p>Instalado, mas o erro continua. É a segunda parte da mensagem: o <code>tsconfig.json</code> do projeto tem <code>"types": []</code>, que quer dizer “não carregue nenhum <code>@types</code> global automaticamente”. O próprio arquivo, logo abaixo, traz a dica comentada <code>// "types": ["node"],</code>. Troque a linha para:</p>
+<pre class="file" data-file="tsconfig.json (trecho)">    "types": ["node"],</pre>
+
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/node.js
+projeto v24.22.1</pre>
+<div class="tip"><strong>Por que o lodash não precisou disso?</strong><p>A opção <code>types</code> só controla os tipos <strong>globais</strong> (como <code>process</code>) e módulos que você não importa por nome de pacote. Pacotes que você importa (<code>import _ from "lodash"</code>) acham o seu <code>@types</code> sozinhos.</p></div>
+<hr>
+<h2>4. Como saber se um pacote já traz tipos</h2>
+<p>Olhe o <code>package.json</code> do pacote: se tiver o campo <code>types</code> (ou <code>typings</code>), os tipos vêm junto e não é preciso <code>@types</code>. Compare o <code>lodash</code> com o <code>dayjs</code> (outra biblioteca popular, de datas):</p>
+
+<pre class="term" data-cwd="~/projeto">$ npm view lodash types
+$ npm view dayjs types
+index.d.ts
+$ npm view @types/lodash version
+4.17.27</pre>
+<p>O <code>npm view lodash types</code> não mostrou nada: o lodash não traz tipos (por isso existe <code>@types/lodash</code>). Já o <code>dayjs</code> aponta para o seu arquivo de declaração (<code>index.d.ts</code>): basta instalar e usar. Alguns pacotes modernos declaram os tipos no campo <code>exports</code> em vez de <code>types</code>; na dúvida, instale e veja se o <code>tsc</code> reclama. Na página do pacote no site do npm, um selo “TS” azul indica tipos incluídos; um selo “DT” indica que existem tipos no DefinitelyTyped.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Tipos instalados como dependência comum, ou esquecidos no outro computador</strong>
+<p>Tipos funcionam com <code>npm i @types/x</code> sem <code>-D</code>, mas aí vão para <code>dependencies</code> à toa. E se o colega clonar o projeto e rodar só <code>npx tsc</code> sem <code>npm install</code>, verá de novo <code>TS7016</code> ou <code>TS2307</code>. A regra: tudo o que o projeto usa precisa estar no <code>package.json</code>, e quem clona roda <code>npm install</code> antes.</p>
+</div>
+<div class="cenario"><strong>Pacote sem tipos e sem @types</strong>
+<p>Se não existir <code>@types/x</code>, a mensagem do <code>TS7016</code> mostra a saída de emergência: criar um arquivo <code>.d.ts</code> com <code>declare module 'x';</code>. Isso tira o erro, mas deixa tudo como <code>any</code>. Melhor é escrever as declarações de verdade, como você vê na aula de arquivos de declaração.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Comando / opção</th><th>Para quê</th></tr>
+<tr><td><code>npm i pacote</code></td><td>código usado rodando (<code>dependencies</code>)</td></tr>
+<tr><td><code>npm i -D @types/pacote</code></td><td>tipos de um pacote JS (<code>devDependencies</code>)</td></tr>
+<tr><td><code>npm i -D @types/node@24</code></td><td>tipos do Node 24</td></tr>
+<tr><td><code>"types": ["node"]</code></td><td>carrega os globais do Node (<code>process</code>…)</td></tr>
+<tr><td><code>npm view pacote types</code></td><td>confere se o pacote traz tipos</td></tr>
+<tr><td><code>TS7016</code> / <code>TS2591</code></td><td>faltam tipos do pacote / do Node</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. O prefixo</h3><p>Complete o nome do pacote de tipos do <code>express</code>:</p><div class="ex-code"><input data-answer="@types" aria-label="prefixo">/express</div></div>
+<div class="exercise"><h3>2. Só para desenvolvimento</h3><p>Complete a opção do npm que salva em <code>devDependencies</code>:</p><div class="ex-code">npm i <input data-answer="-D|--save-dev" aria-label="opcao"> @types/lodash</div></div>
+<div class="exercise"><h3>3. Globais do Node</h3><p>Complete a opção do <code>tsconfig.json</code>:</p><div class="ex-code">"types": [<input data-answer="&quot;node&quot;" aria-label="valor">]</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. O que o erro <code>TS7016</code> quer dizer?</p>
+<label><input type="radio" name="q4"> O pacote não está instalado</label>
+<label><input type="radio" name="q4"> O Node é antigo demais</label>
+<label><input type="radio" name="q4"> O pacote existe, mas não há arquivo de declaração (tipos) para ele</label>
+<label><input type="radio" name="q4"> O <code>tsconfig.json</code> tem erro de sintaxe</label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. Onde ficam os tipos mantidos pela comunidade para pacotes JavaScript?</p>
+<label><input type="radio" name="q5"> No DefinitelyTyped, publicados como <code>@types/…</code></label>
+<label><input type="radio" name="q5"> Dentro do próprio Node</label>
+<label><input type="radio" name="q5"> No <code>tsconfig.json</code></label>
+<label><input type="radio" name="q5"> No site do TypeScript, para baixar à mão</label></div>
+<hr>
+<h2>Missões</h2>
+<p>As missões abaixo usam o projeto desta aula, já com <code>lodash</code>, <code>@types/lodash</code>, <code>@types/node@24</code> e <code>"types": ["node"]</code>.</p>
+<div class="trycmd" data-goal="src:from\s+[&quot;']lodash[&quot;'];;src:const\s+total\s*:\s*number;;semerro;;out:Total: 60">
+<p class="try-task"><strong>Missão:</strong> corrija o tipo de <code>total</code> (o <code>_.sum</code> devolve número) para compilar e mostrar <code>Total: 60</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+import _ from "lodash";
+const total: string = _.sum([10, 20, 30]);
+console.log("Total: " + total);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import _ from "lodash";
+const total: number = _.sum([10, 20, 30]);
+console.log("Total: " + total);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Total: 60
+</pre>
+</div>
+<div class="trycmd" data-goal="src:from\s+[&quot;']node:fs[&quot;'];;src:readFileSync;;semerro;;out:Projeto: projeto">
+<p class="try-task"><strong>Missão:</strong> importe <code>readFileSync</code> de <code>"node:fs"</code>, leia o <code>package.json</code> e mostre <code>Projeto: projeto</code> (o campo <code>name</code>).</p>
+<pre class="script" data-file="src/missao.ts">
+const pacote = { name: "?" };
+console.log("Projeto: " + pacote.name);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import { readFileSync } from "node:fs";
+const pacote = JSON.parse(readFileSync("package.json", "utf8"));
+console.log("Projeto: " + pacote.name);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Projeto: projeto
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Pacote em JavaScript puro → <code>npm i -D @types/pacote</code>.</li>
+<li>Pacote com tipos próprios (campo <code>types</code>) → nada a instalar.</li>
+<li>Node: <code>npm i -D @types/node@24</code> e <code>"types": ["node"]</code>.</li>
+<li><code>TS7016</code>: faltam tipos do pacote; <code>TS2591</code>: faltam os do Node.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decorators — anotando classes e métodos | Guia TypeScript</title>
+<meta name="description" content="Decorators padrão (ECMAScript) no TypeScript 7: decorators de método e de classe, o contexto, addInitializer, por que o Node 24 não roda decorators com target esnext e como usar target es2022, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Decorators</span></h1>
+
+<p class="intro">Um <strong>decorator</strong> é uma função que você “pendura” numa classe ou num método com <code>@nome</code>, para acrescentar comportamento sem mexer no código de dentro: registrar chamadas, medir tempo, validar, cadastrar classes. Frameworks como Angular e NestJS usam muito. Nesta aula você escreve os seus, com os decorators <strong>padrão</strong> do JavaScript que o TypeScript entende.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Por que é preciso <code>--target es2022</code> (ou outro target abaixo de <code>esnext</code>) no Node 24.</li>
+<li>Decorators de método, com <code>ClassMethodDecoratorContext</code>.</li>
+<li>Decorators de classe e o <code>addInitializer</code>.</li>
+<li>Decorators com parâmetros (fábricas).</li>
+</ul></div>
+<hr>
+<h2>1. Primeiro problema: o target</h2>
+<p>Um decorator de método que mostra cada chamada:</p>
+<pre class="file" data-file="src/log.ts">function registrar(metodo: (...args: any[]) =&gt; any, contexto: ClassMethodDecoratorContext) {
+  return function (this: unknown, ...args: any[]) {
+    console.log(`chamando ${String(contexto.name)}(${args.join(", ")})`);
+    return metodo.apply(this, args);
+  };
+}
+
+class Calculadora {
+  @registrar
+  somar(a: number, b: number) {
+    return a + b;
+  }
+}
+
+console.log(new Calculadora().somar(2, 3));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/log.js
+file:///home/ana/projeto/dist/log.js:8
+    @registrar
+    ^
+
+SyntaxError: Invalid or unexpected token
+    at compileSourceTextModule (node:internal/modules/esm/utils:319:16)
+    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:89:18)
+    at #translate (node:internal/modules/esm/loader:438:20)
+    at afterLoad (node:internal/modules/esm/loader:506:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:511:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12)
+    at node:internal/modules/esm/loader:636:32
+    at TracingChannel.tracePromise (node:diagnostics_channel:370:14)
+
+Node.js v24.22.1</pre>
+<p>Compilou, mas o Node recusou o <code>@</code>. Com <code>"target": "esnext"</code>, o <code>tsc</code> deixa os decorators como estão, porque eles fazem parte do JavaScript do futuro, e o Node 24 ainda não os entende. A solução é pedir um target mais antigo, que faz o <code>tsc</code> <strong>converter</strong> os decorators em código comum:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --target es2022 &amp;&amp; node dist/log.js
+chamando somar(2, 3)
+5</pre>
+<p>Para não digitar sempre, troque no <code>tsconfig.json</code> a linha <code>"target": "esnext"</code> por <code>"target": "es2022"</code>. Nesta aula usamos a opção na linha de comando.</p>
+<hr>
+<h2>2. Anatomia de um decorator de método</h2>
+<dl class="anatomy">
+<dt><code>metodo</code></dt><dd>o método original.</dd>
+<dt><code>contexto: ClassMethodDecoratorContext</code></dt><dd>informações sobre onde o decorator foi usado: <code>contexto.name</code> (o nome do método), <code>contexto.kind</code> (<code>"method"</code>), <code>contexto.static</code>, <code>contexto.addInitializer</code>…</dd>
+<dt><code>return function (…) { … }</code></dt><dd>o método novo, que substitui o original. Aqui ele mostra a chamada e chama o original com <code>metodo.apply(this, args)</code>.</dd>
+</dl>
+<p>Um decorator pode ser usado em vários métodos. Um medidor de execuções:</p>
+
+<pre class="file" data-file="src/contador.ts">function contar(metodo: (...args: any[]) =&gt; any, contexto: ClassMethodDecoratorContext) {
+  let vezes = 0;
+  return function (this: unknown, ...args: any[]) {
+    vezes++;
+    console.log(`${String(contexto.name)} chamado ${vezes}x`);
+    return metodo.apply(this, args);
+  };
+}
+
+class Carrinho {
+  itens: string[] = [];
+
+  @contar
+  adicionar(item: string) {
+    this.itens.push(item);
+  }
+
+  @contar
+  limpar() {
+    this.itens = [];
+  }
+}
+
+const c = new Carrinho();
+c.adicionar("pão");
+c.adicionar("leite");
+c.limpar();
+console.log(c.itens);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --target es2022 &amp;&amp; node dist/contador.js
+adicionar chamado 1x
+adicionar chamado 2x
+limpar chamado 1x
+[]</pre>
+<hr>
+<h2>3. Decorators com parâmetros</h2>
+<p>Para configurar o decorator (<code>@prefixo("[API]")</code>), escreva uma função que <strong>devolve</strong> o decorator:</p>
+
+<pre class="file" data-file="src/fabrica.ts">function prefixo(texto: string) {
+  return function (metodo: (...args: any[]) =&gt; string, contexto: ClassMethodDecoratorContext) {
+    return function (this: unknown, ...args: any[]): string {
+      return `${texto} ${metodo.apply(this, args)}`;
+    };
+  };
+}
+
+class Mensagens {
+  @prefixo("[AVISO]")
+  aviso(msg: string) {
+    return msg;
+  }
+
+  @prefixo("[ERRO]")
+  erro(msg: string) {
+    return msg.toUpperCase();
+  }
+}
+
+const m = new Mensagens();
+console.log(m.aviso("disco quase cheio"));
+console.log(m.erro("sem conexão"));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --target es2022 &amp;&amp; node dist/fabrica.js
+[AVISO] disco quase cheio
+[ERRO] SEM CONEXÃO</pre>
+<hr>
+<h2>4. Decorators de classe e addInitializer</h2>
+<p>Um decorator de classe recebe a própria classe. Um uso comum é <strong>cadastrar</strong> classes num registro:</p>
+
+<pre class="file" data-file="src/classe.ts">const registro: string[] = [];
+
+function cadastrar(classe: new (...args: any[]) =&gt; object, contexto: ClassDecoratorContext) {
+  contexto.addInitializer(() =&gt; {
+    registro.push(String(contexto.name));
+  });
+}
+
+@cadastrar
+class Usuario {}
+
+@cadastrar
+class Produto {}
+
+console.log("classes cadastradas:", registro);
+console.log(new Usuario(), new Produto());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --target es2022 &amp;&amp; node dist/classe.js
+classes cadastradas: [ 'Usuario', 'Produto' ]
+Usuario {} Produto {}</pre>
+<p>O <code>addInitializer</code> roda uma função assim que a classe termina de ser definida, antes de qualquer <code>new</code>.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Decorator com a assinatura errada</strong>
+
+<pre class="file" data-file="src/assinatura.ts">function marcar(nome: string) {
+  console.log(nome);
+}
+
+class Tela {
+  @marcar
+  abrir() {}
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --target es2022
+src/assinatura.ts(6,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type '() =&gt; void' is not assignable to parameter of type 'string'.</pre>
+<p>O TypeScript confere que a função serve como decorator: ela recebe o método e o contexto, não uma <code>string</code>. Se queria passar um texto, faça uma fábrica (seção 3) e use <code>@marcar("tela")</code>.</p>
+</div>
+<div class="tip"><strong>experimentalDecorators</strong><p>Projetos mais antigos (e alguns frameworks) usam os decorators “experimentais” do TypeScript, ligados com <code>"experimentalDecorators": true</code>, que têm outra assinatura (<code>alvo, chave, descritor</code>). Se o seu framework pedir essa opção, siga a documentação dele; para código novo, use os decorators padrão desta aula.</p></div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Tipo</th><th>Assinatura</th></tr>
+<tr><td>método</td><td><code>(metodo, contexto: ClassMethodDecoratorContext) =&gt; novoMetodo</code></td></tr>
+<tr><td>classe</td><td><code>(classe, contexto: ClassDecoratorContext) =&gt; void</code></td></tr>
+<tr><td>com parâmetros</td><td><code>function d(opcao) { return function (metodo, contexto) { … } }</code></td></tr>
+<tr><td>rodar no Node 24</td><td><code>npx tsc --target es2022</code> ou <code>"target": "es2022"</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. O símbolo</h3><p>Com que símbolo se aplica um decorator?</p><div class="ex-code"><input data-answer="@" aria-label="simbolo">registrar</div></div>
+<div class="exercise"><h3>2. O target</h3><p>Complete o comando que converte os decorators para o Node 24 entender:</p><div class="ex-code">npx tsc --target <input data-answer="es2022" aria-label="target"></div></div>
+<div class="exercise"><h3>3. O nome do método</h3><p>Complete para obter o nome do método decorado:</p><div class="ex-code">String(contexto.<input data-answer="name" aria-label="propriedade">)</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Por que <code>node dist/log.js</code> falhou com <code>"target": "esnext"</code>?</p>
+<label><input type="radio" name="q4"> O decorator tinha erro de tipo</label>
+<label><input type="radio" name="q4"> Faltou instalar um pacote</label>
+<label><input type="radio" name="q4"> O <code>tsc</code> deixou o <code>@</code> no JavaScript, e o Node 24 não entende decorators</label>
+<label><input type="radio" name="q4"> O Node não roda classes</label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. Para passar uma opção ao decorator (<code>@prefixo("[X]")</code>), você escreve…</p>
+<label><input type="radio" name="q5"> …uma função que devolve o decorator</label>
+<label><input type="radio" name="q5"> …um decorator com três parâmetros</label>
+<label><input type="radio" name="q5"> …uma interface</label>
+<label><input type="radio" name="q5"> …um <code>declare module</code></label></div>
+<hr>
+<h2>Missões</h2>
+<p>As missões rodam com <code>npx tsc --target es2022 &amp;&amp; node dist/missao.js</code>.</p>
+<div class="trycmd" data-goal="src:@registrar\s+depositar|@registrar\s*\n\s*depositar;;semerro;;out:chamando depositar(50);;out:Saldo: 150" data-cmd="npx tsc --target es2022 &amp;&amp; node dist/missao.js">
+<p class="try-task"><strong>Missão:</strong> aplique o decorator <code>@registrar</code> ao método <code>depositar</code>. Saída esperada: <code>chamando depositar(50)</code> e <code>Saldo: 150</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function registrar(metodo: (...args: any[]) =&gt; any, contexto: ClassMethodDecoratorContext) {
+  return function (this: unknown, ...args: any[]) {
+    console.log(`chamando ${String(contexto.name)}(${args.join(", ")})`);
+    return metodo.apply(this, args);
+  };
+}
+
+class Conta {
+  saldo = 100;
+  depositar(valor: number) {
+    this.saldo += valor;
+  }
+}
+
+const c = new Conta();
+c.depositar(50);
+console.log("Saldo: " + c.saldo);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function registrar(metodo: (...args: any[]) =&gt; any, contexto: ClassMethodDecoratorContext) {
+  return function (this: unknown, ...args: any[]) {
+    console.log(`chamando ${String(contexto.name)}(${args.join(", ")})`);
+    return metodo.apply(this, args);
+  };
+}
+
+class Conta {
+  saldo = 100;
+  @registrar
+  depositar(valor: number) {
+    this.saldo += valor;
+  }
+}
+
+const c = new Conta();
+c.depositar(50);
+console.log("Saldo: " + c.saldo);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+chamando depositar(50)
+Saldo: 150
+</pre>
+</div>
+<div class="trycmd" data-goal="src:function\s+multiplicar\s*\(\s*\w+\s*:\s*number\s*\);;src:@multiplicar\s*\(\s*10\s*\);;semerro;;out:Preço: 250" data-cmd="npx tsc --target es2022 &amp;&amp; node dist/missao.js">
+<p class="try-task"><strong>Missão:</strong> escreva a fábrica <code>multiplicar(fator: number)</code>, que devolve um decorator de método que multiplica o resultado por <code>fator</code>, e aplique <code>@multiplicar(10)</code> em <code>preco</code>. Saída esperada: <code>Preço: 250</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+class Item {
+  preco() {
+    return 25;
+  }
+}
+console.log("Preço: " + new Item().preco());
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function multiplicar(fator: number) {
+  return function (metodo: (...args: any[]) =&gt; number, contexto: ClassMethodDecoratorContext) {
+    return function (this: unknown, ...args: any[]): number {
+      return metodo.apply(this, args) * fator;
+    };
+  };
+}
+
+class Item {
+  @multiplicar(10)
+  preco() {
+    return 25;
+  }
+}
+console.log("Preço: " + new Item().preco());
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Preço: 250
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Decorator é uma função aplicada com <code>@</code> que acrescenta comportamento.</li>
+<li>No Node 24, compile com <code>--target es2022</code> (o <code>esnext</code> deixa o <code>@</code> no JS).</li>
+<li>Método: recebe <code>(metodo, contexto)</code> e devolve o método novo.</li>
+<li>Classe: recebe <code>(classe, contexto)</code>; <code>addInitializer</code> roda ao definir a classe.</li>
+<li>Com parâmetros: uma função que devolve o decorator.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
