@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enums — conjuntos de constantes com nome (enum e const enum) | Guia TypeScript</title>
+<meta name="description" content="Enums em TypeScript: enums numéricos e de texto, o JavaScript que o tsc gera para eles, const enum, e a alternativa com union de literais e objetos as const.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Enums</span></h1>
+
+<p class="intro">Um <strong>enum</strong> agrupa constantes com nome: os dias da semana, os status de um pedido, as direções. Ele é um dos poucos recursos do TypeScript que <strong>existe também no JavaScript gerado</strong>. Nesta aula você vê os dois tipos de enum, o código que o <code>tsc</code> cria para eles e a alternativa que muita gente prefere hoje.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Enums numéricos e enums de texto.</li>
+<li>O JavaScript que o <code>tsc</code> gera para um enum.</li>
+<li>O <code>const enum</code>.</li>
+<li>A alternativa sem enum: union de literais e objeto <code>as const</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Enum numérico</h2>
+<pre class="file" data-file="src/enum.ts">enum Direcao {
+  Cima,
+  Baixo,
+  Esquerda,
+  Direita,
+}
+
+let d: Direcao = Direcao.Esquerda;
+console.log(d);
+console.log(Direcao[d]);
+console.log(Direcao.Cima, Direcao.Direita);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/enum.js
+2
+Esquerda
+0 3</pre>
+<p>Sem valores escritos, o primeiro vale <code>0</code> e os outros seguem: <code>1</code>, <code>2</code>, <code>3</code>. E o enum numérico funciona nos dois sentidos: <code>Direcao[2]</code> devolve o nome <code>"Esquerda"</code>. Veja o porquê no JavaScript gerado:</p>
+<pre class="file" data-file="dist/enum.js">var Direcao;
+(function (Direcao) {
+    Direcao[Direcao["Cima"] = 0] = "Cima";
+    Direcao[Direcao["Baixo"] = 1] = "Baixo";
+    Direcao[Direcao["Esquerda"] = 2] = "Esquerda";
+    Direcao[Direcao["Direita"] = 3] = "Direita";
+})(Direcao || (Direcao = {}));
+let d = Direcao.Esquerda;
+console.log(d);
+console.log(Direcao[d]);
+console.log(Direcao.Cima, Direcao.Direita);
+export {};
+//# sourceMappingURL=enum.js.map</pre>
+<p>O <code>tsc</code> criou um objeto de verdade, com as chaves nos dois sentidos. Por isso o enum é diferente dos outros tipos: ele <strong>não some</strong>.</p>
+<hr>
+<h2>2. Enum de texto</h2>
+
+<pre class="file" data-file="src/status.ts">enum Status {
+  Pendente = "PENDENTE",
+  Pago = "PAGO",
+  Enviado = "ENVIADO",
+}
+
+function descrever(s: Status) {
+  if (s === Status.Pago) return "Pagamento confirmado";
+  return "Situação: " + s;
+}
+
+console.log(descrever(Status.Pago));
+console.log(descrever(Status.Enviado));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/status.js
+Pagamento confirmado
+Situação: ENVIADO</pre>
+<p>Com texto, o valor que aparece no log é legível (<code>ENVIADO</code> em vez de <code>2</code>). Mas o enum de texto é rigoroso: um texto solto não é aceito no lugar dele:</p>
+
+<pre class="file" data-file="src/status-erro.ts">enum Status {
+  Pendente = "PENDENTE",
+  Pago = "PAGO",
+}
+function descrever(s: Status) {
+  return s;
+}
+descrever("PAGO");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/status-erro.ts(8,11): error TS2345: Argument of type '"PAGO"' is not assignable to parameter of type 'Status'.</pre>
+<hr>
+<h2>3. const enum</h2>
+<p>Um <code>const enum</code> foi pensado para <strong>não</strong> gerar objeto: o <code>tsc</code> trocaria cada uso pelo valor direto. Veja o que acontece no nosso projeto:</p>
+
+<pre class="file" data-file="src/const-enum.ts">const enum Nivel {
+  Baixo = 1,
+  Medio = 2,
+  Alto = 3,
+}
+const n = Nivel.Alto;
+console.log(n);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/const-enum.js
+3</pre>
+<pre class="file" data-file="dist/const-enum.js">var Nivel;
+(function (Nivel) {
+    Nivel[Nivel["Baixo"] = 1] = "Baixo";
+    Nivel[Nivel["Medio"] = 2] = "Medio";
+    Nivel[Nivel["Alto"] = 3] = "Alto";
+})(Nivel || (Nivel = {}));
+const n = Nivel.Alto;
+console.log(n);
+export {};
+//# sourceMappingURL=const-enum.js.map</pre>
+<p>Surpresa: o objeto foi gerado do mesmo jeito. O motivo é a opção <code>isolatedModules</code> (ligada pelo <code>tsc --init</code>, e implícita no <code>verbatimModuleSyntax</code>): ela exige que cada arquivo possa ser convertido sozinho, sem olhar os outros, e aí o <code>tsc</code> preserva o enum. Desligando as duas opções só nesta compilação, o comportamento “clássico” aparece:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --isolatedModules false --verbatimModuleSyntax false</pre>
+<pre class="file" data-file="dist/const-enum.js">const n = 3 /* Nivel.Alto */;
+console.log(n);
+export {};
+//# sourceMappingURL=const-enum.js.map</pre>
+<p>Agora o enum sumiu e sobrou o número <code>3</code> com o comentário <code>/* Nivel.Alto */</code>. Como os projetos modernos deixam <code>isolatedModules</code> ligado, o <code>const enum</code> perdeu boa parte da graça; a alternativa abaixo é mais comum.</p>
+<hr>
+<h2>4. A alternativa sem enum</h2>
+<p>Muita gente prefere uma <strong>union de literais</strong> (aula <a href="union-literal.html">Union e Literal Types</a>): ela some no JavaScript, aceita o texto direto e o Node consegue rodar sem compilar. Quando é preciso também um objeto com os valores, usa-se <code>as const</code>:</p>
+
+<pre class="file" data-file="src/alternativa.ts">type Status = "PENDENTE" | "PAGO" | "ENVIADO";
+
+function descrever(s: Status) {
+  return "Situação: " + s;
+}
+console.log(descrever("PAGO"));
+
+const Cor = {
+  Vermelho: "#f00",
+  Verde: "#0f0",
+} as const;
+type Cor = (typeof Cor)[keyof typeof Cor];
+
+const fundo: Cor = Cor.Verde;
+console.log(fundo, Object.keys(Cor));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/alternativa.js
+Situação: PAGO
+#0f0 [ 'Vermelho', 'Verde' ]</pre>
+<p>O <code>as const</code> torna o objeto somente leitura e com tipos literais. A linha <code>type Cor = …</code> usa <code>typeof</code> e <code>keyof</code>, que você vê na aula <a href="keyof-typeof.html">keyof e typeof</a>.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Um nome que o enum não tem</strong>
+
+<pre class="file" data-file="src/nome-errado.ts">enum Direcao { Cima, Baixo }
+console.log(Direcao.Lado);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/nome-errado.ts(2,21): error TS2339: Property 'Lado' does not exist on type 'typeof Direcao'.</pre>
+</div>
+<div class="cenario"><strong>Mudar o valor de um membro</strong>
+
+<pre class="file" data-file="src/mudar.ts">enum Direcao { Cima, Baixo }
+Direcao.Cima = 5;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/mudar.ts(2,9): error TS2540: Cannot assign to 'Cima' because it is a read-only property.</pre>
+<p>Os membros do enum são somente leitura.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Resultado</th></tr>
+<tr><td><code>enum D { A, B }</code></td><td><code>A = 0</code>, <code>B = 1</code>; gera objeto nos dois sentidos</td></tr>
+<tr><td><code>enum S { A = "A" }</code></td><td>enum de texto; aceita só <code>S.A</code></td></tr>
+<tr><td><code>const enum N { A = 1 }</code></td><td>sem objeto (valor direto no código), exceto com <code>isolatedModules</code></td></tr>
+<tr><td><code>type S = "A" | "B"</code></td><td>alternativa: union de literais, some no JS</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Declarar</h3><p>Complete:</p><div class="ex-code"><input data-answer="enum" aria-label="palavra"> Tamanho { P, M, G }</div></div>
+<div class="exercise"><h3>2. Valor</h3><p>Em <code>enum Tamanho { P, M, G }</code>, quanto vale <code>Tamanho.G</code>?</p><div class="ex-code"><input data-answer="2" aria-label="valor"></div></div>
+<div class="exercise"><h3>3. Valor direto</h3><p>Complete o enum cujos usos o <code>tsc</code> troca pelo valor (quando <code>isolatedModules</code> está desligado):</p><div class="ex-code"><input data-answer="const" aria-label="palavra"> enum Nivel { Baixo = 1, Alto = 2 }</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. O que o <code>tsc</code> faz com um <code>enum</code> comum?</p>
+<label><input type="radio" name="q4"> Apaga, como os outros tipos</label>
+<label><input type="radio" name="q4"> Gera um objeto JavaScript de verdade</label>
+<label><input type="radio" name="q4"> Gera uma classe</label>
+<label><input type="radio" name="q4"> Gera um arquivo .json</label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. Com <code>enum Status { Pago = "PAGO" }</code> e <code>function f(s: Status)</code>, a chamada <code>f("PAGO")</code>…</p>
+<label><input type="radio" name="q5"> funciona</label>
+<label><input type="radio" name="q5"> funciona só com <code>let</code></label>
+<label><input type="radio" name="q5"> dá erro: precisa usar <code>Status.Pago</code></label>
+<label><input type="radio" name="q5"> vira <code>0</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:enum\s+DiaUtil\s*\{;;src:DiaUtil\.Quarta;;semerro;;out:Quarta é o dia 2">
+<p class="try-task"><strong>Missão:</strong> crie <code>enum DiaUtil { Segunda, Terca, Quarta, Quinta, Sexta }</code> e mostre <code>Quarta é o dia 2</code> usando <code>DiaUtil.Quarta</code> (o número) e <code>DiaUtil[DiaUtil.Quarta]</code> (o nome).</p>
+<pre class="script" data-file="src/missao.ts">
+const dias = ["Segunda", "Terca", "Quarta", "Quinta", "Sexta"];
+console.log(dias[2]);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+enum DiaUtil { Segunda, Terca, Quarta, Quinta, Sexta }
+console.log(`${DiaUtil[DiaUtil.Quarta]} é o dia ${DiaUtil.Quarta}`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Quarta é o dia 2
+</pre>
+</div>
+<div class="trycmd" data-goal="src:enum\s+Moeda\s*\{;;src:Real\s*=\s*[&quot;']BRL[&quot;'];;semerro;;out:Preço: 10 BRL;;out:Preço: 2 USD">
+<p class="try-task"><strong>Missão:</strong> crie o enum de texto <code>Moeda</code> com <code>Real = "BRL"</code> e <code>Dolar = "USD"</code>, e use em <code>preco(valor: number, m: Moeda)</code> para mostrar <code>Preço: 10 BRL</code> e <code>Preço: 2 USD</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function preco(valor: number, m: string) {
+  console.log(`Preço: ${valor} ${m}`);
+}
+preco(10, "BRL");
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+enum Moeda {
+  Real = "BRL",
+  Dolar = "USD",
+}
+function preco(valor: number, m: Moeda) {
+  console.log(`Preço: ${valor} ${m}`);
+}
+preco(10, Moeda.Real);
+preco(2, Moeda.Dolar);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Preço: 10 BRL
+Preço: 2 USD
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>enum</code> agrupa constantes com nome; o numérico começa em 0 e funciona nos dois sentidos.</li>
+<li>O enum gera um objeto no JavaScript; o <code>const enum</code> só some quando <code>isolatedModules</code> está desligado.</li>
+<li>O enum de texto só aceita os próprios membros, não o texto solto.</li>
+<li>Alternativa popular: union de literais (e objeto <code>as const</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

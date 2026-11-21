@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Narrowing — estreitando tipos com typeof, in, instanceof e === | Guia TypeScript</title>
+<meta name="description" content="Narrowing (estreitamento) em TypeScript: como typeof, ===, in, instanceof, Array.isArray e o retorno antecipado fazem o compilador saber o tipo exato dentro de cada bloco.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Narrowing</span> (Estreitamento)</h1>
+
+<p class="intro">Quando um valor pode ser de vários tipos (uma union), você confere qual ele é com um <code>if</code>. O TypeScript <strong>acompanha</strong> essa conferência: dentro do bloco, o tipo fica mais estreito. Isso se chama <strong>narrowing</strong>, e é o que torna as unions práticas.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A estreitar com <code>typeof</code>, <code>===</code>, <code>Array.isArray</code>, <code>in</code> e <code>instanceof</code>.</li>
+<li>Que o retorno antecipado também estreita o resto da função.</li>
+<li>A ver o tipo estreitado num erro de propósito.</li>
+</ul></div>
+<hr>
+<h2>A ideia: o funil</h2>
+<p>Imagine um funil. No topo entra <code>string | number | null</code>. Cada <code>if</code> separa um caso: “se for <code>null</code>, saia”; “se for <code>string</code>, faça isto”. O que sobra lá embaixo tem um tipo só, e o compilador sabe qual.</p>
+<hr>
+<h2>1. typeof</h2>
+<pre class="file" data-file="src/typeof.ts">function dobrar(x: string | number) {
+  if (typeof x === "string") {
+    return x.repeat(2);
+  }
+  return x * 2;
+}
+console.log(dobrar("ab"));
+console.log(dobrar(21));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/typeof.js
+abab
+42</pre>
+<p>Depois do <code>if</code> com <code>return</code>, o compilador sabe que só sobrou <code>number</code>, por isso o <code>x * 2</code> passa. Para ver o tipo em cada ponto, provoque erros de propósito:</p>
+
+<pre class="file" data-file="src/revela.ts">function revelar(x: string | number | boolean) {
+  if (typeof x === "string") {
+    const a: null = x;
+  } else if (typeof x === "number") {
+    const b: null = x;
+  } else {
+    const c: null = x;
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/revela.ts(3,11): error TS2322: Type 'string' is not assignable to type 'null'.
+src/revela.ts(5,11): error TS2322: Type 'number' is not assignable to type 'null'.
+src/revela.ts(7,11): error TS2322: Type 'boolean' is not assignable to type 'null'.</pre>
+<p>Em cada bloco, o mesmo <code>x</code> tem um tipo diferente: <code>string</code>, <code>number</code> e, no <code>else</code>, só sobrou <code>boolean</code>.</p>
+<hr>
+<h2>2. Igualdade e “é verdadeiro?”</h2>
+
+<pre class="file" data-file="src/igualdade.ts">function saudar(nome: string | null | undefined) {
+  if (nome === null) {
+    return "nome apagado";
+  }
+  if (!nome) {
+    return "sem nome";
+  }
+  return "Olá, " + nome.toUpperCase();
+}
+console.log(saudar("ana"));
+console.log(saudar(null));
+console.log(saudar(undefined));
+console.log(saudar(""));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/igualdade.js
+Olá, ANA
+nome apagado
+sem nome
+sem nome</pre>
+<p>O <code>if (!nome)</code> pega <code>undefined</code> e também o texto vazio <code>""</code>, que é “falso” no JavaScript. Cuidado com isso quando <code>0</code> ou <code>""</code> forem valores válidos.</p>
+<hr>
+<h2>3. Array.isArray, in e instanceof</h2>
+
+<pre class="file" data-file="src/outros.ts">function total(x: number | number[]) {
+  if (Array.isArray(x)) {
+    return x.reduce((a, b) =&gt; a + b, 0);
+  }
+  return x;
+}
+console.log(total(5), total([1, 2, 3]));
+
+type Carro = { rodas: number; dirigir(): string };
+type Barco = { velas: number; navegar(): string };
+
+function mover(v: Carro | Barco) {
+  if ("rodas" in v) {
+    return v.dirigir();
+  }
+  return v.navegar();
+}
+console.log(mover({ rodas: 4, dirigir: () =&gt; "vrum" }));
+console.log(mover({ velas: 2, navegar: () =&gt; "splash" }));
+
+function quando(d: Date | string) {
+  if (d instanceof Date) {
+    return d.getFullYear();
+  }
+  return d;
+}
+console.log(quando(new Date(2026, 0, 1)), quando("amanhã"));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/outros.js
+5 6
+vrum
+splash
+2026 amanhã</pre>
+<div class="table-wrap"><table class="ref">
+<tr><th>Conferência</th><th>Serve para</th></tr>
+<tr><td><code>typeof x === "string"</code></td><td>primitivos (<code>string</code>, <code>number</code>, <code>boolean</code>…)</td></tr>
+<tr><td><code>x === null</code></td><td>valores exatos</td></tr>
+<tr><td><code>Array.isArray(x)</code></td><td>arrays</td></tr>
+<tr><td><code>"rodas" in x</code></td><td>objetos que se diferenciam por um campo</td></tr>
+<tr><td><code>x instanceof Date</code></td><td>objetos criados com <code>new</code> (classes)</td></tr>
+</table></div>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>typeof null é "object"</strong>
+
+<pre class="file" data-file="src/typeof-null.ts">function tamanho(x: string[] | null) {
+  if (typeof x === "object") {
+    return x.length;
+  }
+  return 0;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/typeof-null.ts(3,12): error TS18047: 'x' is possibly 'null'.</pre>
+<p>Uma esquisitice antiga do JavaScript: <code>typeof null</code> também é <code>"object"</code>. O compilador sabe disso e avisa que <code>x</code> ainda pode ser <code>null</code>. Use <code>if (x !== null)</code> ou <code>if (x)</code>.</p>
+</div>
+<div class="cenario"><strong>Guardar a conferência numa variável</strong>
+
+<pre class="file" data-file="src/sem-narrowing.ts">function primeiraLetra(x: string | number) {
+  const ehTexto = typeof x === "string";
+  if (ehTexto) {
+    return x.charAt(0);
+  }
+  return "";
+}
+console.log(primeiraLetra("Ana"));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/sem-narrowing.js
+A</pre>
+<p>Aqui funcionou: guardar a conferência numa <code>const</code> também estreita, desde que a variável não seja reatribuída entre a conferência e o uso. Se ainda assim o compilador não entender, confira direto no <code>if</code>.</p>
+</div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Texto</h3><p>Complete a conferência:</p><div class="ex-code">if (typeof valor === <input data-answer="&quot;string&quot;|'string'" aria-label="tipo">) { valor.toUpperCase(); }</div></div>
+<div class="exercise"><h3>2. Array</h3><p>Complete para conferir se é um array:</p><div class="ex-code">if (Array.<input data-answer="isArray" aria-label="metodo">(x)) { … }</div></div>
+<div class="exercise"><h3>3. Classe</h3><p>Complete para conferir se é uma data:</p><div class="ex-code">if (d <input data-answer="instanceof" aria-label="operador"> Date) { … }</div></div>
+<div class="mc" data-answer="4"><p class="mc-q">4. Qual conferência diferencia <code>{ rodas: number }</code> de <code>{ velas: number }</code>?</p>
+<label><input type="radio" name="q4"> <code>typeof v === "rodas"</code></label>
+<label><input type="radio" name="q4"> <code>v instanceof rodas</code></label>
+<label><input type="radio" name="q4"> <code>Array.isArray(v)</code></label>
+<label><input type="radio" name="q4"> <code>"rodas" in v</code></label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. Quanto vale <code>typeof null</code> no JavaScript?</p>
+<label><input type="radio" name="q5"> <code>"object"</code></label>
+<label><input type="radio" name="q5"> <code>"null"</code></label>
+<label><input type="radio" name="q5"> <code>"undefined"</code></label>
+<label><input type="radio" name="q5"> <code>"never"</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:Array\.isArray\(;;semerro;;out:3 itens;;out:1 item">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function contar(x: string | string[])</code> que mostra <code>3 itens</code> para <code>["a", "b", "c"]</code> e <code>1 item</code> para um texto solto. Use <code>Array.isArray</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function contar(x: string | string[]) {
+  console.log(x.length + " itens");
+}
+contar(["a", "b", "c"]);
+contar("abc");
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function contar(x: string | string[]) {
+  if (Array.isArray(x)) {
+    console.log(x.length + " itens");
+  } else {
+    console.log("1 item");
+  }
+}
+contar(["a", "b", "c"]);
+contar("abc");
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+3 itens
+1 item
+</pre>
+</div>
+<div class="trycmd" data-goal="src:[&quot;']latir[&quot;']\s+in\s+\w+;;semerro;;out:Au au!;;out:Miau!">
+<p class="try-task"><strong>Missão:</strong> com os tipos <code>Cachorro</code> e <code>Gato</code>, escreva <code>function falar(a: Cachorro | Gato)</code> usando <code>"latir" in a</code> para chamar o método certo. Mostre <code>Au au!</code> e <code>Miau!</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Cachorro = { latir(): string };
+type Gato = { miar(): string };
+
+function falar(a: Cachorro | Gato) {
+  return a.latir();
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Cachorro = { latir(): string };
+type Gato = { miar(): string };
+
+function falar(a: Cachorro | Gato) {
+  if ("latir" in a) {
+    return a.latir();
+  }
+  return a.miar();
+}
+console.log(falar({ latir: () =&gt; "Au au!" }));
+console.log(falar({ miar: () =&gt; "Miau!" }));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Au au!
+Miau!
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Narrowing: o compilador estreita o tipo dentro de cada bloco de conferência.</li>
+<li>Ferramentas: <code>typeof</code>, <code>===</code>, verdadeiro/falso, <code>Array.isArray</code>, <code>in</code>, <code>instanceof</code>.</li>
+<li>Um <code>return</code> antecipado estreita o resto da função.</li>
+<li><code>typeof null</code> é <code>"object"</code>: confira o <code>null</code> à parte.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

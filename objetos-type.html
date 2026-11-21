@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Objetos e type — tipando objetos e dando nome aos tipos | Guia TypeScript</title>
+<meta name="description" content="Como tipar objetos em TypeScript, propriedades opcionais e readonly, o type alias para dar nome a um tipo, e os erros de propriedade que falta ou sobra.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Objetos e <span class="hl">type</span></h1>
+
+<p class="intro">Quase todo programa lida com <strong>objetos</strong>: um usuário, um produto, um pedido. Em TypeScript você descreve a <strong>forma</strong> do objeto (quais campos, de quais tipos) e pode dar um nome a essa forma com <code>type</code>.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A escrever o tipo de um objeto: <code>{ nome: string; idade: number }</code>.</li>
+<li>A dar nome ao tipo com <code>type Usuario = { … }</code>.</li>
+<li>Propriedades opcionais (<code>?</code>) e somente leitura (<code>readonly</code>).</li>
+<li>Os erros de campo que falta, que sobra ou que não existe.</li>
+</ul></div>
+<hr>
+<h2>1. O tipo de um objeto</h2>
+<pre class="file" data-file="src/objeto.ts">const livro: { titulo: string; paginas: number } = {
+  titulo: "Dom Casmurro",
+  paginas: 256,
+};
+
+console.log(livro.titulo, "-", livro.paginas, "páginas");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/objeto.js
+Dom Casmurro - 256 páginas</pre>
+<p>Escrever a forma inteira toda vez cansa. Para isso existe o <code>type</code>.</p>
+<hr>
+<h2>2. Dando nome com type</h2>
+<dl class="anatomy">
+<dt>type</dt><dd>cria um apelido (alias) para um tipo</dd>
+<dt>Produto</dt><dd>o nome do tipo, por costume com inicial maiúscula</dd>
+<dt>= { nome: string; preco: number }</dt><dd>a forma que o nome representa</dd>
+</dl>
+
+<pre class="file" data-file="src/produto.ts">type Produto = {
+  nome: string;
+  preco: number;
+  emEstoque: boolean;
+};
+
+const cafe: Produto = { nome: "Café", preco: 18.9, emEstoque: true };
+const cha: Produto = { nome: "Chá", preco: 9.5, emEstoque: false };
+
+function etiqueta(p: Produto): string {
+  const situacao = p.emEstoque ? "disponível" : "esgotado";
+  return `${p.nome}: R$ ${p.preco.toFixed(2)} (${situacao})`;
+}
+
+console.log(etiqueta(cafe));
+console.log(etiqueta(cha));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/produto.js
+Café: R$ 18.90 (disponível)
+Chá: R$ 9.50 (esgotado)</pre>
+<p>O <code>type</code> não serve só para objetos: <code>type Id = number;</code> e <code>type Operacao = (a: number, b: number) =&gt; number;</code> também valem.</p>
+<hr>
+<h2>3. Campo que falta, que sobra ou que não existe</h2>
+
+<pre class="file" data-file="src/campos.ts">type Produto = { nome: string; preco: number };
+
+const a: Produto = { nome: "Pão" };
+const b: Produto = { nome: "Leite", preco: 5, marca: "Boa" };
+const c: Produto = { nome: "Ovo", preco: 1 };
+console.log(c.peso);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/campos.ts(3,7): error TS2741: Property 'preco' is missing in type '{ nome: string; }' but required in type 'Produto'.
+src/campos.ts(4,47): error TS2353: Object literal may only specify known properties, and 'marca' does not exist in type 'Produto'.
+src/campos.ts(6,15): error TS2339: Property 'peso' does not exist on type 'Produto'.</pre>
+<p>Três erros diferentes: <code>TS2741</code> (falta o <code>preco</code>), <code>TS2353</code> (o <code>marca</code> não faz parte do tipo) e <code>TS2339</code> (ler um campo que o tipo não tem).</p>
+<hr>
+<h2>4. Opcionais e readonly</h2>
+
+<pre class="file" data-file="src/opcionais.ts">type Usuario = {
+  readonly id: number;
+  nome: string;
+  email?: string;
+};
+
+const u: Usuario = { id: 1, nome: "Ana" };
+u.nome = "Ana Souza";
+console.log(u);
+console.log(u.email ?? "sem e-mail");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/opcionais.js
+{ id: 1, nome: 'Ana Souza' }
+sem e-mail</pre>
+<p>O <code>email?</code> pode faltar. E o <code>readonly id</code> não pode ser alterado depois de criado:</p>
+
+<pre class="file" data-file="src/readonly.ts">type Usuario = { readonly id: number; nome: string };
+const u: Usuario = { id: 1, nome: "Ana" };
+u.id = 2;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/readonly.ts(3,3): error TS2540: Cannot assign to 'id' because it is a read-only property.</pre>
+<hr>
+<h2>5. Objetos dentro de objetos</h2>
+
+<pre class="file" data-file="src/aninhado.ts">type Endereco = { rua: string; cidade: string };
+type Cliente = { nome: string; endereco: Endereco; telefones: string[] };
+
+const cliente: Cliente = {
+  nome: "Caio",
+  endereco: { rua: "Rua das Flores, 10", cidade: "Natal" },
+  telefones: ["84 99999-0000"],
+};
+
+console.log(`${cliente.nome} mora em ${cliente.endereco.cidade}`);
+console.log(cliente.telefones.length, "telefone(s)");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/aninhado.js
+Caio mora em Natal
+1 telefone(s)</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Erro de digitação no nome do campo</strong>
+
+<pre class="file" data-file="src/digitacao.ts">type Produto = { nome: string; preco: number };
+const p: Produto = { nome: "Café", prceo: 10 };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/digitacao.ts(2,36): error TS2561: Object literal may only specify known properties, but 'prceo' does not exist in type 'Produto'. Did you mean to write 'preco'?</pre>
+<p>O compilador percebe o erro e ainda sugere o nome certo.</p>
+</div>
+<div class="cenario"><strong>Usar o type antes de criar… não é problema</strong>
+<p>Os tipos não existem quando o programa roda, então a ordem não importa para eles: dá para usar um <code>type</code> declarado mais abaixo no arquivo. O que importa é que o nome exista em algum lugar do arquivo (ou seja importado).</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>type P = { nome: string }</code></td><td>dá o nome <code>P</code> a uma forma de objeto</td></tr>
+<tr><td><code>email?: string</code></td><td>campo opcional</td></tr>
+<tr><td><code>readonly id: number</code></td><td>campo que não muda depois de criado</td></tr>
+<tr><td><code>endereco: Endereco</code></td><td>campo que é outro objeto tipado</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Dar nome</h3><p>Complete para criar o tipo <code>Ponto</code>:</p><div class="ex-code"><input data-answer="type" aria-label="palavra"> Ponto = { x: number; y: number };</div></div>
+<div class="exercise"><h3>2. Opcional</h3><p>Complete para o <code>apelido</code> ser opcional:</p><div class="ex-code">type Pessoa = { nome: string; apelido<input data-answer="?" aria-label="simbolo">: string };</div></div>
+<div class="exercise"><h3>3. Não muda</h3><p>Complete para o <code>cpf</code> não poder ser alterado:</p><div class="ex-code">type Pessoa = { <input data-answer="readonly" aria-label="palavra"> cpf: string };</div></div>
+<div class="mc" data-answer="1"><p class="mc-q">4. Qual erro aparece quando o objeto tem um campo que o tipo não conhece?</p>
+<label><input type="radio" name="q4"> <code>TS2353</code> (Object literal may only specify known properties)</label>
+<label><input type="radio" name="q4"> <code>TS2741</code></label>
+<label><input type="radio" name="q4"> <code>TS7006</code></label>
+<label><input type="radio" name="q4"> Nenhum</label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. O <code>type</code> serve para…</p>
+<label><input type="radio" name="q5"> só objetos</label>
+<label><input type="radio" name="q5"> criar objetos no JavaScript gerado</label>
+<label><input type="radio" name="q5"> dar nome a qualquer tipo: objetos, funções, primitivos…</label>
+<label><input type="radio" name="q5"> declarar variáveis</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:type\s+Filme\s*=\s*\{;;src:titulo\s*:\s*string;;src:ano\s*:\s*number;;semerro;;out:Central do Brasil (1998)">
+<p class="try-task"><strong>Missão:</strong> crie <code>type Filme = { titulo: string; ano: number }</code>, um filme <code>"Central do Brasil"</code> de <code>1998</code> e mostre <code>Central do Brasil (1998)</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const filme = { titulo: "Central do Brasil", ano: 1998 };
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Filme = { titulo: string; ano: number };
+const filme: Filme = { titulo: "Central do Brasil", ano: 1998 };
+console.log(`${filme.titulo} (${filme.ano})`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Central do Brasil (1998)
+</pre>
+</div>
+<div class="trycmd" data-goal="src:telefone\s*\?\s*:\s*string;;semerro;;out:Bia - sem telefone;;out:Caio - 81 98888-7777">
+<p class="try-task"><strong>Missão:</strong> no tipo <code>Contato</code>, torne o <code>telefone</code> opcional, para o contato da Bia (sem telefone) ser aceito. A função já mostra <code>sem telefone</code> quando ele falta.</p>
+<pre class="script" data-file="src/missao.ts">
+type Contato = { nome: string; telefone: string };
+
+function mostrar(c: Contato) {
+  console.log(`${c.nome} - ${c.telefone ?? "sem telefone"}`);
+}
+mostrar({ nome: "Bia" });
+mostrar({ nome: "Caio", telefone: "81 98888-7777" });
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Contato = { nome: string; telefone?: string };
+
+function mostrar(c: Contato) {
+  console.log(`${c.nome} - ${c.telefone ?? "sem telefone"}`);
+}
+mostrar({ nome: "Bia" });
+mostrar({ nome: "Caio", telefone: "81 98888-7777" });
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Bia - sem telefone
+Caio - 81 98888-7777
+</pre>
+</div>
+<div class="trycmd" data-goal="src:readonly\s+codigo\s*:\s*string;;erro:error TS2540: Cannot assign to 'codigo' because it is a read-only property.">
+<p class="try-task"><strong>Missão:</strong> marque o <code>codigo</code> do tipo <code>Pedido</code> como <code>readonly</code> e cole o erro que aparece quando o código tenta mudá-lo.</p>
+<pre class="script" data-file="src/missao.ts">
+type Pedido = { codigo: string; total: number };
+const p: Pedido = { codigo: "A1", total: 50 };
+p.codigo = "B2";
+console.log(p);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Pedido = { readonly codigo: string; total: number };
+const p: Pedido = { codigo: "A1", total: 50 };
+p.codigo = "B2";
+console.log(p);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+src/missao.ts(3,3): error TS2540: Cannot assign to 'codigo' because it is a read-only property.
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>O tipo de um objeto lista os campos e os tipos deles.</li>
+<li><code>type Nome = …</code> dá nome a um tipo para reutilizar.</li>
+<li><code>?</code> marca campo opcional; <code>readonly</code>, campo que não muda.</li>
+<li>Campo faltando (<code>TS2741</code>), sobrando (<code>TS2353</code>) ou inexistente (<code>TS2339</code>) viram erro.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

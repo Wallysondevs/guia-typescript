@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Union e Literal Types — string | number e "pequeno" | "grande" | Guia TypeScript</title>
+<meta name="description" content="Union types (A | B) e literal types em TypeScript: aceitar mais de um tipo, limitar valores a uma lista fixa, interseção com &amp; e os erros reais quando o valor não está na lista.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Union e <span class="hl">Literal Types</span></h1>
+
+<p class="intro">Às vezes um valor pode ser de <strong>mais de um tipo</strong>: um código que é número ou texto. Isso é uma <strong>union</strong>, escrita com a barra <code>|</code> (“ou”). E às vezes o valor só pode ser uma de poucas opções exatas, como <code>"P"</code>, <code>"M"</code> ou <code>"G"</code>: são os <strong>literal types</strong>. Juntos, eles descrevem dados reais com muita precisão.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Union types: <code>string | number</code>.</li>
+<li>O que dá e o que não dá para fazer com um valor de union.</li>
+<li>Literal types: <code>"pequeno" | "medio" | "grande"</code>.</li>
+<li>De bônus: a interseção <code>A &amp; B</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Union: um ou outro</h2>
+<pre class="file" data-file="src/union.ts">type Id = string | number;
+
+function mostrarId(id: Id) {
+  console.log("Seu id é: " + id);
+}
+
+mostrarId(101);
+mostrarId("A-202");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/union.js
+Seu id é: 101
+Seu id é: A-202</pre>
+<p>Um booleano, porém, não está na union:</p>
+
+<pre class="file" data-file="src/union-erro.ts">type Id = string | number;
+const id: Id = true;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/union-erro.ts(2,7): error TS2322: Type 'boolean' is not assignable to type 'Id'.</pre>
+<hr>
+<h2>2. Só o que é comum a todos</h2>
+<p>Com um valor <code>string | number</code>, o compilador só deixa usar o que existe nos <strong>dois</strong> tipos. O <code>toUpperCase</code> só existe em <code>string</code>:</p>
+
+<pre class="file" data-file="src/comum.ts">function formatar(valor: string | number) {
+  console.log(valor.toString());
+  return valor.toUpperCase();
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/comum.ts(3,16): error TS2339: Property 'toUpperCase' does not exist on type 'string | number'.
+  Property 'toUpperCase' does not exist on type 'number'.</pre>
+<p>O <code>toString()</code> passou (os dois têm); o <code>toUpperCase()</code> não. Para usar o que é só de um dos tipos, é preciso <strong>conferir</strong> antes. Esse é o assunto da próxima aula, <a href="narrowing.html">Narrowing</a>. Uma prévia:</p>
+
+<pre class="file" data-file="src/comum.ts">function formatar(valor: string | number): string {
+  if (typeof valor === "string") {
+    return valor.toUpperCase();
+  }
+  return valor.toFixed(2);
+}
+console.log(formatar("café"));
+console.log(formatar(9.5));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/comum.js
+CAFÉ
+9.50</pre>
+<hr>
+<h2>3. Literal types: uma lista fechada</h2>
+
+<pre class="file" data-file="src/literal.ts">type Tamanho = "P" | "M" | "G";
+type Direcao = "norte" | "sul" | "leste" | "oeste";
+
+function pedirCamisa(tamanho: Tamanho) {
+  console.log("Camisa tamanho " + tamanho);
+}
+
+function andar(d: Direcao, passos: 1 | 2 | 3) {
+  console.log(`Andando ${passos} passo(s) para o ${d}`);
+}
+
+pedirCamisa("M");
+andar("norte", 2);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/literal.js
+Camisa tamanho M
+Andando 2 passo(s) para o norte</pre>
+<p>Agora tente um tamanho fora da lista e um número de passos que não vale:</p>
+
+<pre class="file" data-file="src/literal-erro.ts">type Tamanho = "P" | "M" | "G";
+function pedirCamisa(tamanho: Tamanho) {}
+pedirCamisa("GG");
+pedirCamisa("m");
+
+let passos: 1 | 2 | 3 = 4;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/literal-erro.ts(3,13): error TS2345: Argument of type '"GG"' is not assignable to parameter of type 'Tamanho'.
+src/literal-erro.ts(4,13): error TS2345: Argument of type '"m"' is not assignable to parameter of type 'Tamanho'.
+src/literal-erro.ts(6,5): error TS2322: Type '4' is not assignable to type '1 | 2 | 3'.</pre>
+<p>Repare que <code>"m"</code> minúsculo também foi recusado: literal é <strong>exato</strong>. A mensagem cita o nome do tipo (<code>Tamanho</code>); quando o tipo não tem nome, como em <code>1 | 2 | 3</code>, ela mostra a própria lista.</p>
+<hr>
+<h2>4. Bônus: interseção com &amp;</h2>
+<p>Se a union <code>|</code> é “ou”, a interseção <code>&amp;</code> é “e”: o valor precisa ter <strong>tudo</strong> dos dois tipos.</p>
+
+<pre class="file" data-file="src/intersecao.ts">type ComNome = { nome: string };
+type ComIdade = { idade: number };
+type Pessoa = ComNome &amp; ComIdade;
+
+const p: Pessoa = { nome: "Ana", idade: 30 };
+console.log(p);
+
+const q: Pessoa = { nome: "Bia" };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/intersecao.ts(8,7): error TS2322: Type '{ nome: string; }' is not assignable to type 'Pessoa'.
+  Property 'idade' is missing in type '{ nome: string; }' but required in type 'ComIdade'.</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Um let com valor literal fica largo</strong>
+
+<pre class="file" data-file="src/let-largo.ts">type Tamanho = "P" | "M" | "G";
+function pedirCamisa(tamanho: Tamanho) {}
+
+let escolha = "M";
+pedirCamisa(escolha);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/let-largo.ts(5,13): error TS2345: Argument of type 'string' is not assignable to parameter of type 'Tamanho'.</pre>
+<p>Lembra da aula <a href="inferencia.html">Inferência</a>? Um <code>let</code> vira <code>string</code>, e <code>string</code> é largo demais para <code>Tamanho</code>. Soluções: <code>const escolha = "M"</code> ou <code>let escolha: Tamanho = "M"</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>string | number</code></td><td>um ou outro</td></tr>
+<tr><td><code>"P" | "M" | "G"</code></td><td>só um destes textos exatos</td></tr>
+<tr><td><code>1 | 2 | 3</code></td><td>só um destes números</td></tr>
+<tr><td><code>A &amp; B</code></td><td>tudo de A e tudo de B</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Ou</h3><p>Complete a union de texto ou número:</p><div class="ex-code">type Codigo = string <input data-answer="|" aria-label="simbolo"> number;</div></div>
+<div class="exercise"><h3>2. Literais</h3><p>Complete para aceitar só <code>"on"</code> ou <code>"off"</code>:</p><div class="ex-code">type Estado = "on" | <input data-answer="&quot;off&quot;|'off'" aria-label="literal">;</div></div>
+<div class="exercise"><h3>3. E</h3><p>Qual símbolo faz a interseção de dois tipos?</p><div class="ex-code"><input data-answer="&" aria-label="simbolo"></div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Com <code>valor: string | number</code>, o que dá para chamar direto, sem conferir?</p>
+<label><input type="radio" name="q4"> <code>valor.toUpperCase()</code></label>
+<label><input type="radio" name="q4"> <code>valor.toFixed(2)</code></label>
+<label><input type="radio" name="q4"> <code>valor.toString()</code></label>
+<label><input type="radio" name="q4"> Nada</label></div>
+<div class="mc" data-answer="2"><p class="mc-q">5. Com <code>type Tamanho = "P" | "M" | "G"</code>, o valor <code>"m"</code> é aceito?</p>
+<label><input type="radio" name="q5"> Sim, maiúsculas não importam</label>
+<label><input type="radio" name="q5"> Não: literal é exato</label>
+<label><input type="radio" name="q5"> Só com <code>let</code></label>
+<label><input type="radio" name="q5"> Só no JavaScript gerado</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:type\s+Semaforo\s*=\s*[&quot;']verde[&quot;']\s*\|\s*[&quot;']amarelo[&quot;']\s*\|\s*[&quot;']vermelho[&quot;'];;semerro;;out:verde: siga;;out:vermelho: pare">
+<p class="try-task"><strong>Missão:</strong> crie <code>type Semaforo = "verde" | "amarelo" | "vermelho"</code> e use no parâmetro de <code>acao</code>. Mostre as ações para <code>"verde"</code> e <code>"vermelho"</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function acao(cor: string) {
+  if (cor === "verde") return "verde: siga";
+  if (cor === "amarelo") return "amarelo: atenção";
+  return "vermelho: pare";
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Semaforo = "verde" | "amarelo" | "vermelho";
+function acao(cor: Semaforo) {
+  if (cor === "verde") return "verde: siga";
+  if (cor === "amarelo") return "amarelo: atenção";
+  return "vermelho: pare";
+}
+console.log(acao("verde"));
+console.log(acao("vermelho"));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+verde: siga
+vermelho: pare
+</pre>
+</div>
+<div class="trycmd" data-goal="src:[&quot;']azul[&quot;'];;erro:error TS2345: Argument of type '&quot;azul&quot;' is not assignable to parameter of type 'Semaforo'.">
+<p class="try-task"><strong>Missão:</strong> com o tipo <code>Semaforo</code> da missão anterior, chame <code>acao("azul")</code> e cole o erro.</p>
+<pre class="script" data-file="src/missao.ts">
+type Semaforo = "verde" | "amarelo" | "vermelho";
+function acao(cor: Semaforo) {
+  return cor;
+}
+console.log(acao("verde"));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Semaforo = "verde" | "amarelo" | "vermelho";
+function acao(cor: Semaforo) {
+  return cor;
+}
+console.log(acao("azul"));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+src/missao.ts(5,18): error TS2345: Argument of type '"azul"' is not assignable to parameter of type 'Semaforo'.
+</pre>
+</div>
+<div class="trycmd" data-goal="src:\w+\s*:\s*string\s*\|\s*number;;src:typeof;;semerro;;out:#0042;;out:#A7">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function codigo(c: string | number)</code>: se for número, mostra com <code>#</code> e 4 dígitos (<code>"#" + String(c).padStart(4, "0")</code>); se for texto, mostra <code>#</code> e o texto em maiúsculas. Chame com <code>42</code> e <code>"a7"</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function codigo(c: any) {
+  console.log("#" + c);
+}
+codigo(42);
+codigo("a7");
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function codigo(c: string | number) {
+  if (typeof c === "number") {
+    console.log("#" + String(c).padStart(4, "0"));
+  } else {
+    console.log("#" + c.toUpperCase());
+  }
+}
+codigo(42);
+codigo("a7");
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+#0042
+#A7
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>A | B</code> (union): o valor é um ou outro; só dá para usar direto o que os dois têm.</li>
+<li>Literal types limitam o valor a uma lista exata: <code>"P" | "M" | "G"</code>.</li>
+<li><code>A &amp; B</code> (interseção): o valor tem tudo dos dois.</li>
+<li>Um <code>let</code> com texto vira <code>string</code>; use <code>const</code> ou a anotação para manter o literal.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

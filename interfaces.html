@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interfaces — descrevendo a forma de objetos com interface | Guia TypeScript</title>
+<meta name="description" content="Interfaces em TypeScript: declarar, estender com extends, métodos, propriedades opcionais, a fusão de declarações e as diferenças práticas entre interface e type.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Interfaces</span></h1>
+
+<p class="intro">Uma <code>interface</code> é outra forma de descrever a forma de um objeto, parecida com o <code>type</code> da aula anterior. Ela é muito usada em bibliotecas e em código orientado a objetos, e tem dois truques próprios: <strong>estender</strong> outra interface com <code>extends</code> e <strong>juntar</strong> declarações com o mesmo nome.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A declarar uma interface com campos e métodos.</li>
+<li>A criar uma interface a partir de outra com <code>extends</code>.</li>
+<li>A fusão de declarações (duas interfaces com o mesmo nome viram uma).</li>
+<li>Quando usar <code>interface</code> e quando usar <code>type</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Declarando uma interface</h2>
+<pre class="file" data-file="src/interface.ts">interface Aluno {
+  nome: string;
+  notas: number[];
+  turma?: string;
+  media(): number;
+}
+
+const ana: Aluno = {
+  nome: "Ana",
+  notas: [8, 9, 10],
+  media() {
+    return this.notas.reduce((a, b) =&gt; a + b, 0) / this.notas.length;
+  },
+};
+
+console.log(`${ana.nome}: média ${ana.media()}`);
+console.log(ana.turma ?? "sem turma");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/interface.js
+Ana: média 9
+sem turma</pre>
+<p>Repare que não há <code>=</code> depois do nome (diferente do <code>type</code>). O <code>media(): number</code> descreve um <strong>método</strong>: uma função dentro do objeto.</p>
+<hr>
+<h2>2. Estendendo com extends</h2>
+
+<pre class="file" data-file="src/extends.ts">interface Pessoa {
+  nome: string;
+  idade: number;
+}
+
+interface Funcionario extends Pessoa {
+  cargo: string;
+  salario: number;
+}
+
+const bia: Funcionario = { nome: "Bia", idade: 28, cargo: "Dev", salario: 7000 };
+console.log(`${bia.nome}, ${bia.idade} anos, ${bia.cargo}`);
+
+function apresentar(p: Pessoa) {
+  console.log("Olá, " + p.nome);
+}
+apresentar(bia);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/extends.js
+Bia, 28 anos, Dev
+Olá, Bia</pre>
+<p>Um <code>Funcionario</code> tem tudo de <code>Pessoa</code> e mais. Por isso ele pode ser passado onde se espera uma <code>Pessoa</code>.</p>
+<hr>
+<h2>3. A forma é o que importa</h2>
+<p>O TypeScript compara <strong>formas</strong>, não nomes. Um objeto que tem os campos certos serve, mesmo que nunca tenha “dito” que é daquela interface:</p>
+
+<pre class="file" data-file="src/forma.ts">interface ComNome {
+  nome: string;
+}
+
+function cumprimentar(x: ComNome) {
+  console.log("Oi, " + x.nome);
+}
+
+const cachorro = { nome: "Rex", raca: "vira-lata" };
+cumprimentar(cachorro);
+cumprimentar({ nome: "Caio" });</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/forma.js
+Oi, Rex
+Oi, Caio</pre>
+<p>Isso se chama <strong>tipagem estrutural</strong>. O <code>cachorro</code> tem um campo a mais (<code>raca</code>), e tudo bem: o erro de campo sobrando (<code>TS2353</code>) só acontece quando o objeto é escrito direto no lugar onde o tipo é exigido.</p>
+<hr>
+<h2>4. Fusão de declarações</h2>
+
+<pre class="file" data-file="src/fusao.ts">interface Config {
+  tema: string;
+}
+interface Config {
+  idioma: string;
+}
+
+const c: Config = { tema: "escuro", idioma: "pt-BR" };
+console.log(c);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/fusao.js
+{ tema: 'escuro', idioma: 'pt-BR' }</pre>
+<p>Duas interfaces com o mesmo nome viram uma só. Com <code>type</code> isso é proibido:</p>
+
+<pre class="file" data-file="src/fusao-type.ts">type Config = { tema: string };
+type Config = { idioma: string };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/fusao-type.ts(1,6): error TS2300: Duplicate identifier 'Config'.
+src/fusao-type.ts(2,6): error TS2300: Duplicate identifier 'Config'.</pre>
+<p>A fusão é útil para <strong>acrescentar</strong> campos a tipos de bibliotecas (aula <a href="declaration-files.html">Arquivos de Declaração</a>).</p>
+<hr>
+<h2>interface ou type?</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th></th><th><code>interface</code></th><th><code>type</code></th></tr>
+<tr><td>Forma de objeto</td><td>sim</td><td>sim</td></tr>
+<tr><td>Estender</td><td><code>extends</code></td><td><code>&amp;</code> (interseção)</td></tr>
+<tr><td>Fusão com o mesmo nome</td><td>sim</td><td>não (<code>TS2300</code>)</td></tr>
+<tr><td>Unions, primitivos, tuplas</td><td>não</td><td>sim (<code>type Id = string | number</code>)</td></tr>
+</table></div>
+<p>Regra prática: use <code>interface</code> para formas de objetos e <code>type</code> para o resto (unions, funções, tuplas). Os dois funcionam; o importante é ser consistente no projeto.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Esquecer um método da interface</strong>
+
+<pre class="file" data-file="src/metodo.ts">interface Animal {
+  nome: string;
+  falar(): string;
+}
+const gato: Animal = { nome: "Mimi" };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/metodo.ts(5,7): error TS2741: Property 'falar' is missing in type '{ nome: string; }' but required in type 'Animal'.</pre>
+</div>
+<div class="cenario"><strong>Estender trocando o tipo de um campo</strong>
+
+<pre class="file" data-file="src/extends-erro.ts">interface Pessoa { idade: number }
+interface Aluno extends Pessoa { idade: string }</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/extends-erro.ts(2,11): error TS2430: Interface 'Aluno' incorrectly extends interface 'Pessoa'.
+  Types of property 'idade' are incompatible.
+    Type 'string' is not assignable to type 'number'.</pre>
+</div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Declarar</h3><p>Complete:</p><div class="ex-code"><input data-answer="interface" aria-label="palavra"> Carro { modelo: string; ano: number }</div></div>
+<div class="exercise"><h3>2. Estender</h3><p>Complete para <code>Gerente</code> ter tudo de <code>Funcionario</code>:</p><div class="ex-code">interface Gerente <input data-answer="extends" aria-label="palavra"> Funcionario { equipe: string[] }</div></div>
+<div class="exercise"><h3>3. Método</h3><p>Complete o método que devolve um texto:</p><div class="ex-code">interface Animal { falar()<input data-answer=": string" aria-label="retorno"> }</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. O que acontece com duas <code>interface Config</code> no mesmo arquivo?</p>
+<label><input type="radio" name="q4"> Erro de nome duplicado</label>
+<label><input type="radio" name="q4"> Elas se juntam numa só</label>
+<label><input type="radio" name="q4"> Vale só a última</label>
+<label><input type="radio" name="q4"> Vale só a primeira</label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Qual destes só dá para fazer com <code>type</code>?</p>
+<label><input type="radio" name="q5"> Descrever um objeto</label>
+<label><input type="radio" name="q5"> Descrever um método</label>
+<label><input type="radio" name="q5"> Campos opcionais</label>
+<label><input type="radio" name="q5"> Uma union: <code>string | number</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:interface\s+Livro\s*\{;;src:autor\s*:\s*string;;semerro;;out:&quot;Vidas Secas&quot;, de Graciliano Ramos">
+<p class="try-task"><strong>Missão:</strong> crie a <code>interface Livro</code> com <code>titulo: string</code> e <code>autor: string</code>, um livro e mostre <code>"Vidas Secas", de Graciliano Ramos</code> (com as aspas).</p>
+<pre class="script" data-file="src/missao.ts">
+const livro = { titulo: "Vidas Secas", autor: "Graciliano Ramos" };
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+interface Livro {
+  titulo: string;
+  autor: string;
+}
+const livro: Livro = { titulo: "Vidas Secas", autor: "Graciliano Ramos" };
+console.log(`"${livro.titulo}", de ${livro.autor}`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+"Vidas Secas", de Graciliano Ramos
+</pre>
+</div>
+<div class="trycmd" data-goal="src:interface\s+Ave\s+extends\s+Animal;;semerro;;out:Piu voa a 30 km/h">
+<p class="try-task"><strong>Missão:</strong> crie <code>interface Ave extends Animal</code> com o campo <code>velocidade: number</code>, uma ave <code>{ nome: "Piu", velocidade: 30 }</code> e mostre <code>Piu voa a 30 km/h</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+interface Animal {
+  nome: string;
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+interface Animal {
+  nome: string;
+}
+interface Ave extends Animal {
+  velocidade: number;
+}
+const ave: Ave = { nome: "Piu", velocidade: 30 };
+console.log(`${ave.nome} voa a ${ave.velocidade} km/h`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Piu voa a 30 km/h
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>interface Nome { … }</code> descreve a forma de um objeto, com campos e métodos.</li>
+<li><code>extends</code> cria uma interface a partir de outra.</li>
+<li>O TypeScript compara formas (tipagem estrutural).</li>
+<li>Interfaces com o mesmo nome se juntam; <code>type</code> duplicado é erro.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
