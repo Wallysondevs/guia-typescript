@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Erros comuns do TypeScript — como ler e corrigir | Guia TypeScript</title>
+<meta name="description" content="Aprenda a ler uma mensagem do tsc (arquivo, linha, coluna, código TS) e a corrigir os erros mais comuns do TypeScript, como TS2322, TS2345, TS2339, TS2304, TS2554, TS2741, TS2588 e TS1005, todos com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Erros <span class="hl">comuns</span> e como ler</h1>
+
+<p class="intro">Você já viu dezenas de erros ao longo do guia. Esta aula junta os mais frequentes num lugar só e ensina a <strong>ler</strong> a mensagem como um profissional: onde está o problema, qual é o código dele e o que a frase em inglês está dizendo. As mensagens ficam em inglês aqui, exatamente como o <code>tsc</code> mostra, para você reconhecê-las no seu terminal.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>As partes de uma linha de erro do <code>tsc</code>.</li>
+<li>Os erros de tipo mais frequentes e a correção de cada um.</li>
+<li>Erros de sintaxe e de nomes.</li>
+<li>Uma estratégia para quando aparecem muitos erros de uma vez.</li>
+</ul></div>
+<hr>
+<h2>1. Anatomia de uma mensagem</h2>
+<pre class="file" data-file="src/anatomia.ts">let total: number = 10;
+total = "dez";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/anatomia.ts(2,1): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+<dl class="anatomy">
+<dt><code>src/anatomia.ts</code></dt><dd>o arquivo.</dd>
+<dt><code>(2,1)</code></dt><dd>linha 2, coluna 1: onde o problema começa.</dd>
+<dt><code>error TS2322</code></dt><dd>o código do erro. Pesquisar “TS2322” na internet leva direto a explicações.</dd>
+<dt><code>Type 'string' is not assignable to type 'number'.</code></dt><dd>a frase: “o tipo <code>string</code> não pode ser atribuído ao tipo <code>number</code>”.</dd>
+</dl>
+<div class="tip"><strong>Vocabulário que mais aparece</strong><p><em>is not assignable to</em> = não pode ser atribuído a · <em>does not exist on type</em> = não existe no tipo · <em>Cannot find name</em> = não encontro o nome · <em>Expected 2 arguments, but got 1</em> = esperava 2 argumentos, recebeu 1 · <em>is possibly 'undefined'</em> = pode ser <code>undefined</code> · <em>is missing</em> = está faltando.</p></div>
+<hr>
+<h2>2. Erros de tipo</h2>
+
+<pre class="file" data-file="src/tipos.ts">type Cliente = { nome: string; idade: number };
+
+function saudar(c: Cliente): string {
+  return "Olá, " + c.nome;
+}
+
+const cliente: Cliente = { nome: "Ana" };
+saudar({ nome: "Bia", idade: "20" });
+console.log(cliente.email);
+console.log(cliente.nome.toUppercase());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/tipos.ts(7,7): error TS2741: Property 'idade' is missing in type '{ nome: string; }' but required in type 'Cliente'.
+src/tipos.ts(8,23): error TS2322: Type 'string' is not assignable to type 'number'.
+src/tipos.ts(9,21): error TS2339: Property 'email' does not exist on type 'Cliente'.
+src/tipos.ts(10,26): error TS2551: Property 'toUppercase' does not exist on type 'string'. Did you mean 'toUpperCase'?</pre>
+<div class="table-wrap"><table class="ref">
+<tr><th>Código</th><th>O que quer dizer</th><th>Como corrigir</th></tr>
+<tr><td><code>TS2741</code></td><td>falta uma propriedade obrigatória</td><td>preencha (<code>idade: 30</code>) ou torne opcional (<code>idade?:</code>)</td></tr>
+<tr><td><code>TS2322</code></td><td>valor de um tipo onde se esperava outro</td><td>ajuste o valor (<code>20</code>, sem aspas) ou o tipo</td></tr>
+<tr><td><code>TS2339</code></td><td>propriedade que o tipo não tem</td><td>adicione ao tipo ou use outra propriedade</td></tr>
+<tr><td><code>TS2551</code></td><td>propriedade parecida existe: erro de digitação</td><td>use o nome sugerido (<code>toUpperCase</code>)</td></tr>
+</table></div>
+<hr>
+<h2>3. Erros de funções e nomes</h2>
+
+<pre class="file" data-file="src/funcoes.ts">function somar(a: number, b: number): number {
+  return a + b;
+}
+
+somar(1);
+somar(1, "2");
+console.log(resultado);
+const limite = 5;
+limite = 10;
+function media(lista) {
+  return lista.length;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/funcoes.ts(5,1): error TS2554: Expected 2 arguments, but got 1.
+src/funcoes.ts(6,10): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+src/funcoes.ts(7,13): error TS2304: Cannot find name 'resultado'.
+src/funcoes.ts(9,1): error TS2588: Cannot assign to 'limite' because it is a constant.
+src/funcoes.ts(10,16): error TS7006: Parameter 'lista' implicitly has an 'any' type.</pre>
+<div class="table-wrap"><table class="ref">
+<tr><th>Código</th><th>O que quer dizer</th><th>Como corrigir</th></tr>
+<tr><td><code>TS2554</code></td><td>número errado de argumentos</td><td>passe todos (ou use parâmetro opcional/padrão)</td></tr>
+<tr><td><code>TS2345</code></td><td>argumento do tipo errado</td><td>converta (<code>Number("2")</code>) ou passe o tipo certo</td></tr>
+<tr><td><code>TS2304</code></td><td>nome que não existe</td><td>declare a variável ou corrija o nome</td></tr>
+<tr><td><code>TS2588</code></td><td>reatribuir uma <code>const</code></td><td>use <code>let</code></td></tr>
+<tr><td><code>TS7006</code></td><td>parâmetro sem tipo (<code>any</code> implícito)</td><td>anote: <code>lista: number[]</code></td></tr>
+</table></div>
+<hr>
+<h2>4. Erros de sintaxe</h2>
+<p>Erros com código <code>TS1xxx</code> costumam ser de <strong>sintaxe</strong>: o texto nem chega a ser um programa válido.</p>
+
+<pre class="file" data-file="src/sintaxe.ts">const nomes = ["Ana", "Bia";
+function ola( {
+  console.log("oi");
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sintaxe.ts(1,28): error TS1005: ',' expected.
+src/sintaxe.ts(3,10): error TS1005: ',' expected.
+src/sintaxe.ts(3,14): error TS1005: ',' expected.
+src/sintaxe.ts(4,1): error TS1128: Declaration or statement expected.</pre>
+<p>Em erros de sintaxe, a linha apontada às vezes é <strong>depois</strong> do problema real: o compilador só percebe que algo faltou quando encontra o próximo símbolo. Olhe a linha indicada <strong>e a anterior</strong>.</p>
+<hr>
+<h2 id="errado">Quando dá errado: muitos erros de uma vez</h2>
+<div class="cenario"><strong>Um erro que gera vários</strong>
+<p>Um único engano pode disparar uma cascata de mensagens. Aqui, o tipo <code>Produto</code> foi escrito com <code>p</code> minúsculo na declaração:</p>
+
+<pre class="file" data-file="src/cascata.ts">type produto = { nome: string; preco: number };
+
+const a: Produto = { nome: "Lápis", preco: 2 };
+const b: Produto = { nome: "Caderno", preco: 15 };
+function total(itens: Produto[]): number {
+  return itens.reduce((s, p) =&gt; s + p.preco, 0);
+}
+console.log(total([a, b]));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/cascata.ts(3,10): error TS2552: Cannot find name 'Produto'. Did you mean 'produto'?
+src/cascata.ts(4,10): error TS2552: Cannot find name 'Produto'. Did you mean 'produto'?
+src/cascata.ts(5,23): error TS2552: Cannot find name 'Produto'. Did you mean 'produto'?</pre>
+<p>Os três erros vêm do mesmo engano, e o <code>TS2552</code> até sugere o nome parecido. Estratégia: <strong>corrija sempre o primeiro erro e compile de novo</strong>. Muitas vezes os outros somem junto. Aqui, trocar <code>type produto</code> por <code>type Produto</code> resolve tudo.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Código</th><th>Resumo</th></tr>
+<tr><td><code>TS2322</code></td><td>tipo errado numa atribuição</td></tr>
+<tr><td><code>TS2345</code></td><td>tipo errado num argumento</td></tr>
+<tr><td><code>TS2339</code> / <code>TS2551</code></td><td>propriedade inexistente / com erro de digitação</td></tr>
+<tr><td><code>TS2304</code> / <code>TS2552</code></td><td>nome inexistente / parecido com outro</td></tr>
+<tr><td><code>TS2554</code></td><td>quantidade de argumentos</td></tr>
+<tr><td><code>TS2741</code></td><td>propriedade obrigatória faltando</td></tr>
+<tr><td><code>TS2588</code></td><td>atribuição a <code>const</code></td></tr>
+<tr><td><code>TS7006</code></td><td><code>any</code> implícito</td></tr>
+<tr><td><code>TS18047</code> / <code>TS18048</code></td><td>pode ser <code>null</code> / <code>undefined</code></td></tr>
+<tr><td><code>TS1005</code></td><td>sintaxe: faltou um símbolo</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. A linha</h3><p>Na mensagem <code>src/app.ts(12,5): error TS2304: Cannot find name 'x'.</code>, em que linha está o problema?</p><div class="ex-code">linha <input data-answer="12" aria-label="linha"></div></div>
+<div class="exercise"><h3>2. O código</h3><p>Qual o código do erro de reatribuir uma <code>const</code>? (só os números, sem “TS”)</p><div class="ex-code">TS<input data-answer="2588" aria-label="codigo"></div></div>
+<div class="exercise"><h3>3. Tradução</h3><p>Complete a tradução de <em>Cannot find name</em>: “não encontro o …”</p><div class="ex-code">não encontro o <input data-answer="nome" aria-label="palavra"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Apareceram 15 erros depois de uma mudança. O que fazer primeiro?</p>
+<label><input type="radio" name="q4"> Corrigir o último da lista</label>
+<label><input type="radio" name="q4"> Corrigir o primeiro e compilar de novo</label>
+<label><input type="radio" name="q4"> Desligar o <code>strict</code></label>
+<label><input type="radio" name="q4"> Trocar os tipos por <code>any</code></label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Erros de código <code>TS1xxx</code> costumam ser de quê?</p>
+<label><input type="radio" name="q5"> De tipos genéricos</label>
+<label><input type="radio" name="q5"> De pacotes npm</label>
+<label><input type="radio" name="q5"> Do Node.js</label>
+<label><input type="radio" name="q5"> De sintaxe</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:idade:\s*30;;semerro;;out:Ana tem 30 anos">
+<p class="try-task"><strong>Missão:</strong> o objeto está com dois problemas (uma propriedade com tipo errado e uma faltando). O <code>tsc</code> mostra um de cada vez: corrija, compile de novo e leia o próximo erro, até o programa mostrar <code>Ana tem 30 anos</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Pessoa = { nome: string; idade: number; ativa: boolean };
+const p: Pessoa = { nome: "Ana", idade: "30" };
+console.log(`${p.nome} tem ${p.idade} anos`);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Pessoa = { nome: string; idade: number; ativa: boolean };
+const p: Pessoa = { nome: "Ana", idade: 30, ativa: true };
+console.log(`${p.nome} tem ${p.idade} anos`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Ana tem 30 anos
+</pre>
+</div>
+<div class="trycmd" data-goal="src:let\s+contador;;src:toFixed;;semerro;;out:Contador: 2.00">
+<p class="try-task"><strong>Missão:</strong> corrija os dois erros (<code>TS2588</code> e <code>TS2551</code>) e mostre <code>Contador: 2.00</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const contador = 1;
+contador = contador + 1;
+console.log("Contador: " + contador.tofixed(2));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+let contador = 1;
+contador = contador + 1;
+console.log("Contador: " + contador.toFixed(2));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Contador: 2.00
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Toda mensagem diz <strong>arquivo(linha,coluna)</strong>, o <strong>código</strong> <code>TSxxxx</code> e a frase.</li>
+<li>Os campeões: <code>TS2322</code>, <code>TS2345</code>, <code>TS2339</code>, <code>TS2304</code>, <code>TS2554</code>.</li>
+<li><code>TS1xxx</code> costuma ser sintaxe: olhe a linha apontada e a anterior.</li>
+<li>Muitos erros? Corrija o primeiro e compile de novo.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

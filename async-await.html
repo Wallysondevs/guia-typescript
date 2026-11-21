@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>async/await e Promise&lt;T&gt; em TypeScript | Guia TypeScript</title>
+<meta name="description" content="Código assíncrono tipado em TypeScript: Promise&lt;T&gt;, funções async, await no topo do módulo, Promise.all, erros com try/catch e unknown, e o erro de esquecer o await, com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">async</span>/await e Promise&lt;T&gt;</h1>
+
+<p class="intro">Ler um arquivo, chamar uma API, esperar um tempo: tudo isso <strong>demora</strong>, e o JavaScript não fica parado esperando. Ele devolve uma <strong>Promise</strong> (uma “promessa” de valor futuro). O TypeScript tipa essa promessa como <code>Promise&lt;T&gt;</code>, onde <code>T</code> é o que vai chegar, e avisa quando você esquece de esperar por ela.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>O tipo <code>Promise&lt;T&gt;</code> e funções <code>async</code>.</li>
+<li><code>await</code>, inclusive no topo do arquivo.</li>
+<li><code>Promise.all</code> para esperar várias coisas juntas.</li>
+<li>Erros assíncronos com <code>try/catch</code> (e o <code>e</code> do tipo <code>unknown</code>).</li>
+<li>O erro clássico: esquecer o <code>await</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Uma função async</h2>
+<p>Vamos simular uma busca lenta com <code>setTimeout</code>:</p>
+<pre class="file" data-file="src/async.ts">function esperar(ms: number): Promise&lt;void&gt; {
+  return new Promise((resolve) =&gt; setTimeout(resolve, ms));
+}
+
+async function buscarUsuario(id: number): Promise&lt;string&gt; {
+  await esperar(100);
+  return `usuario-${id}`;
+}
+
+console.log("antes");
+const nome = await buscarUsuario(7);
+console.log("chegou:", nome);
+console.log("depois");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/async.js
+antes
+chegou: usuario-7
+depois</pre>
+<dl class="anatomy">
+<dt><code>async function … : Promise&lt;string&gt;</code></dt><dd>uma função <code>async</code> <strong>sempre</strong> devolve uma Promise. O <code>return</code> de uma <code>string</code> vira <code>Promise&lt;string&gt;</code>.</dd>
+<dt><code>await</code></dt><dd>pausa <strong>esta</strong> função até a Promise terminar e entrega o valor já “desembrulhado”: <code>nome</code> é <code>string</code>.</dd>
+<dt><code>await</code> no topo</dt><dd>em módulos (o nosso projeto é <code>"type": "module"</code>), dá para usar <code>await</code> fora de função.</dd>
+</dl>
+<hr>
+<h2>2. Promise.all: várias de uma vez</h2>
+<p>Cada <code>await</code> em sequência espera o anterior. Quando as tarefas são independentes, <code>Promise.all</code> espera todas ao mesmo tempo, e o TypeScript sabe o tipo de cada posição:</p>
+
+<pre class="file" data-file="src/todas.ts">const esperar = (ms: number) =&gt; new Promise&lt;void&gt;((r) =&gt; setTimeout(r, ms));
+
+async function preco(produto: string): Promise&lt;number&gt; {
+  await esperar(50);
+  console.log("preço de", produto, "pronto");
+  return produto.length * 10;
+}
+
+async function estoque(produto: string): Promise&lt;boolean&gt; {
+  await esperar(20);
+  console.log("estoque de", produto, "pronto");
+  return true;
+}
+
+const [valor, temEstoque] = await Promise.all([preco("caneta"), estoque("caneta")]);
+console.log(valor, temEstoque);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/todas.js
+estoque de caneta pronto
+preço de caneta pronto
+60 true</pre>
+<p>O estoque (20 ms) ficou pronto antes do preço (50 ms), mas o resultado vem na ordem da lista: <code>valor</code> é <code>number</code> e <code>temEstoque</code> é <code>boolean</code>.</p>
+<hr>
+<h2>3. Erros: try/catch e unknown</h2>
+<p>Se a Promise falha (um <code>throw</code> dentro da função async), o <code>await</code> lança o erro, e você o pega com <code>try/catch</code>. Mas o TypeScript não sabe o que foi lançado (qualquer coisa pode ser lançada), então <code>e</code> é <code>unknown</code>:</p>
+
+<pre class="file" data-file="src/erro.ts">async function buscar(id: number): Promise&lt;string&gt; {
+  if (id &lt; 0) throw new Error("id inválido");
+  return "ok";
+}
+
+try {
+  await buscar(-1);
+} catch (e) {
+  console.log(e.message);
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/erro.ts(9,15): error TS18046: 'e' is of type 'unknown'.</pre>
+<p>A correção é conferir antes de usar (narrowing):</p>
+
+<pre class="file" data-file="src/erro.ts">async function buscar(id: number): Promise&lt;string&gt; {
+  if (id &lt; 0) throw new Error("id inválido");
+  return "ok";
+}
+
+try {
+  await buscar(-1);
+} catch (e) {
+  if (e instanceof Error) {
+    console.log("Falhou:", e.message);
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/erro.js
+Falhou: id inválido</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Esquecer o await</strong>
+<p>Sem <code>await</code>, você tem a <strong>promessa</strong>, não o valor. O TypeScript percebe em vários lugares:</p>
+
+<pre class="file" data-file="src/sem-await.ts">async function buscarNome(): Promise&lt;string&gt; {
+  return "Ana";
+}
+
+const nome: string = buscarNome();
+const tamanho = buscarNome().length;
+if (buscarNome()) {
+  console.log("achou");
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-await.ts(5,7): error TS2322: Type 'Promise&lt;string&gt;' is not assignable to type 'string'.
+src/sem-await.ts(6,30): error TS2339: Property 'length' does not exist on type 'Promise&lt;string&gt;'.
+src/sem-await.ts(7,5): error TS2801: This condition will always return true since this 'Promise&lt;string&gt;' is always defined.</pre>
+<p>Os três erros têm a mesma pista: aparece <code>Promise&lt;string&gt;</code> onde você esperava uma <code>string</code>. O <code>TS2801</code> ainda lembra que uma Promise sempre “existe”, então o <code>if</code> seria sempre verdadeiro. Em todos os casos a correção é <code>await buscarNome()</code>.</p>
+</div>
+<div class="cenario"><strong>Tipo de retorno sem Promise</strong>
+
+<pre class="file" data-file="src/retorno.ts">async function total(): number {
+  return 42;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/retorno.ts(1,25): error TS1064: The return type of an async function or method must be the global Promise&lt;T&gt; type. Did you mean to write 'Promise&lt;number&gt;'?</pre>
+<p>Função <code>async</code> sempre devolve <code>Promise</code>: escreva <code>Promise&lt;number&gt;</code>, como a própria mensagem sugere.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>Promise&lt;T&gt;</code></td><td>valor do tipo <code>T</code> que chega depois</td></tr>
+<tr><td><code>async function f(): Promise&lt;T&gt;</code></td><td>função assíncrona</td></tr>
+<tr><td><code>const x = await p</code></td><td>espera e desembrulha: <code>x</code> é <code>T</code></td></tr>
+<tr><td><code>await Promise.all([a, b])</code></td><td>espera todas; tupla com os tipos de cada uma</td></tr>
+<tr><td><code>catch (e)</code></td><td><code>e</code> é <code>unknown</code>; confira com <code>instanceof Error</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. O tipo de retorno</h3><p>Complete o tipo de retorno da função que devolve um número:</p><div class="ex-code">async function contar(): <input data-answer="Promise&lt;number&gt;" aria-label="tipo"> { return 3; }</div></div>
+<div class="exercise"><h3>2. Esperar</h3><p>Complete para que <code>nome</code> seja <code>string</code>:</p><div class="ex-code">const nome = <input data-answer="await" aria-label="palavra"> buscarNome();</div></div>
+<div class="exercise"><h3>3. Várias juntas</h3><p>Complete:</p><div class="ex-code">const [a, b] = await Promise.<input data-answer="all" aria-label="metodo">([f(), g()]);</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Qual o tipo de <code>e</code> em <code>catch (e)</code> com <code>strict</code>?</p>
+<label><input type="radio" name="q4"> <code>Error</code></label>
+<label><input type="radio" name="q4"> <code>any</code></label>
+<label><input type="radio" name="q4"> <code>unknown</code></label>
+<label><input type="radio" name="q4"> <code>string</code></label></div>
+<div class="mc" data-answer="2"><p class="mc-q">5. Sem <code>await</code>, o que <code>buscarNome()</code> devolve?</p>
+<label><input type="radio" name="q5"> <code>string</code></label>
+<label><input type="radio" name="q5"> <code>Promise&lt;string&gt;</code></label>
+<label><input type="radio" name="q5"> <code>undefined</code></label>
+<label><input type="radio" name="q5"> <code>void</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:await\s+dobroDepois\(;;semerro;;out:Resultado: 42">
+<p class="try-task"><strong>Missão:</strong> o código não compila porque falta esperar a Promise. Corrija para mostrar <code>Resultado: 42</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+async function dobroDepois(n: number): Promise&lt;number&gt; {
+  return n * 2;
+}
+const r: number = dobroDepois(21);
+console.log("Resultado: " + r);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+async function dobroDepois(n: number): Promise&lt;number&gt; {
+  return n * 2;
+}
+const r: number = await dobroDepois(21);
+console.log("Resultado: " + r);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Resultado: 42
+</pre>
+</div>
+<div class="trycmd" data-goal="src:instanceof\s+Error;;semerro;;out:Erro tratado: estoque vazio">
+<p class="try-task"><strong>Missão:</strong> trate o erro com <code>try/catch</code>, conferindo <code>e instanceof Error</code>, e mostre <code>Erro tratado: estoque vazio</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+async function retirar(qtd: number): Promise&lt;number&gt; {
+  if (qtd &gt; 0) throw new Error("estoque vazio");
+  return 0;
+}
+await retirar(1);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+async function retirar(qtd: number): Promise&lt;number&gt; {
+  if (qtd &gt; 0) throw new Error("estoque vazio");
+  return 0;
+}
+try {
+  await retirar(1);
+} catch (e) {
+  if (e instanceof Error) {
+    console.log("Erro tratado: " + e.message);
+  }
+}
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Erro tratado: estoque vazio
+</pre>
+</div>
+<div class="trycmd" data-goal="src:Promise\.all;;semerro;;out:Total: 30">
+<p class="try-task"><strong>Missão:</strong> use <code>Promise.all</code> para buscar os dois valores ao mesmo tempo e mostre <code>Total: 30</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+async function valorA(): Promise&lt;number&gt; { return 10; }
+async function valorB(): Promise&lt;number&gt; { return 20; }
+// busque os dois valores juntos aqui
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+async function valorA(): Promise&lt;number&gt; { return 10; }
+async function valorB(): Promise&lt;number&gt; { return 20; }
+const [a, b] = await Promise.all([valorA(), valorB()]);
+console.log("Total: " + (a + b));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Total: 30
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>Promise&lt;T&gt;</code> é um <code>T</code> que chega depois; função <code>async</code> sempre devolve uma.</li>
+<li><code>await</code> desembrulha; funciona no topo dos módulos.</li>
+<li><code>Promise.all</code> espera várias juntas e mantém o tipo de cada posição.</li>
+<li>No <code>catch</code>, <code>e</code> é <code>unknown</code>: confira com <code>instanceof Error</code>.</li>
+<li>Esqueceu o <code>await</code>? O TypeScript costuma avisar.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

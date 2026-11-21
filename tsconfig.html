@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tsconfig.json — as opções que mudam o seu código | Guia TypeScript</title>
+<meta name="description" content="Entenda o tsconfig.json gerado pelo tsc --init no TypeScript 7: rootDir, outDir, strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes, noEmitOnError e noEmit, com erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>O <span class="hl">tsconfig.json</span></h1>
+
+<p class="intro">O <code>tsconfig.json</code> é o painel de controle do compilador: diz onde estão os arquivos, para onde vai o JavaScript e <strong>quão exigente</strong> o TypeScript deve ser. Você criou o seu com <code>npx tsc --init</code> lá no começo; agora vamos entender as opções que mais aparecem no dia a dia.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>O que significam as linhas do <code>tsconfig.json</code> do projeto.</li>
+<li>O que o <code>strict</code> liga.</li>
+<li><code>noUncheckedIndexedAccess</code> e <code>exactOptionalPropertyTypes</code>.</li>
+<li>Por que o <code>tsc</code> gera JavaScript mesmo com erro, e como impedir.</li>
+<li>Passar opções pela linha de comando.</li>
+</ul></div>
+<hr>
+<h2>1. As linhas ativas do projeto</h2>
+<p>Tirando os comentários, o <code>tsconfig.json</code> do nosso projeto (gerado pelo TypeScript 7.0.2, com <code>rootDir</code> e <code>outDir</code> descomentados) fica assim:</p>
+<pre class="code">{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "module": "nodenext",
+    "target": "esnext",
+    "types": [],
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+  }
+}</pre>
+<dl class="anatomy">
+<dt><code>rootDir</code> / <code>outDir</code></dt><dd>de onde vêm os <code>.ts</code> (<code>src</code>) e para onde vão os <code>.js</code> (<code>dist</code>).</dd>
+<dt><code>module</code> / <code>target</code></dt><dd>que sistema de módulos usar (<code>nodenext</code>: o do Node atual) e para qual versão do JavaScript gerar (<code>esnext</code>: a mais nova).</dd>
+<dt><code>types: []</code></dt><dd>não carrega pacotes <code>@types</code> automaticamente (veja a aula de tipos de pacotes).</dd>
+<dt><code>sourceMap</code>, <code>declaration</code>, <code>declarationMap</code></dt><dd>geram os <code>.js.map</code>, <code>.d.ts</code> e <code>.d.ts.map</code> que aparecem em <code>dist/</code>.</dd>
+<dt><code>strict</code></dt><dd>liga um pacote de verificações rigorosas.</dd>
+<dt><code>verbatimModuleSyntax</code>, <code>isolatedModules</code></dt><dd>exigem que cada arquivo possa ser convertido sozinho (por isso o <code>import type</code>).</dd>
+<dt><code>skipLibCheck</code></dt><dd>não confere os <code>.d.ts</code> de bibliotecas, o que deixa a compilação mais rápida.</dd>
+</dl>
+<div class="tip"><strong>Comentários e vírgula sobrando</strong><p>O <code>tsconfig.json</code> aceita comentários <code>//</code> e vírgula depois do último item, coisas que um JSON comum não aceita.</p></div>
+<hr>
+<h2>2. O que o strict liga</h2>
+<p>Este código tem dois problemas escondidos: um parâmetro sem tipo e um valor que pode ser <code>null</code>.</p>
+<pre class="file" data-file="src/strict.ts">function dobrar(x) {
+  return x * 2;
+}
+const achado: string | null = Math.random() &gt; 2 ? "ok" : null;
+console.log(dobrar(4), achado.length);</pre>
+<p>Toda opção do <code>tsconfig.json</code> também pode ir na linha de comando. Primeiro, tentando desligar só o <code>strict</code>:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --strict false
+tsconfig.json(25,5): error TS5052: Option 'exactOptionalPropertyTypes' cannot be specified without specifying option 'strictNullChecks'.</pre>
+<p>As opções dependem umas das outras: <code>exactOptionalPropertyTypes</code> só existe junto com <code>strictNullChecks</code>, que vem do <code>strict</code>. Desligando as duas:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --strict false --exactOptionalPropertyTypes false</pre>
+<p>Nenhuma reclamação. Agora com o <code>tsconfig.json</code> normal:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/strict.ts(1,17): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/strict.ts(5,24): error TS18047: 'achado' is possibly 'null'.
+$ node dist/strict.js
+file:///home/ana/projeto/dist/strict.js:5
+console.log(dobrar(4), achado.length);
+                              ^
+
+TypeError: Cannot read properties of null (reading 'length')
+    at file:///home/ana/projeto/dist/strict.js:5:31
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.1</pre>
+<p>Com <code>strict</code>, vêm <code>noImplicitAny</code> (o <code>TS7006</code>) e <code>strictNullChecks</code> (o <code>TS18047</code>), entre outras. E repare na última linha: <strong>mesmo com erro, o <code>tsc</code> gerou o JavaScript</strong>, e o programa quebrou rodando. Isso é o assunto da seção 5.</p>
+<hr>
+<h2>3. noUncheckedIndexedAccess</h2>
+<p>Ler <code>lista[0]</code> pode dar <code>undefined</code> se a lista estiver vazia. Com esta opção ligada, o TypeScript lembra disso:</p>
+
+<pre class="file" data-file="src/indice.ts">const nomes: string[] = [];
+const primeiro = nomes[0];
+console.log(primeiro.toUpperCase());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/indice.ts(3,13): error TS18048: 'primeiro' is possibly 'undefined'.</pre>
+<p>O tipo de <code>primeiro</code> é <code>string | undefined</code>. A correção é tratar o caso: <code>primeiro?.toUpperCase()</code>, <code>primeiro ?? "ninguém"</code> ou um <code>if</code>.</p>
+<hr>
+<h2>4. exactOptionalPropertyTypes</h2>
+<p>Uma propriedade opcional (<code>apelido?: string</code>) pode <strong>faltar</strong>. Com esta opção, ela não pode ser <strong>escrita</strong> como <code>undefined</code>:</p>
+
+<pre class="file" data-file="src/opcional.ts">type Perfil = { nome: string; apelido?: string };
+const ana: Perfil = { nome: "Ana" };
+const bia: Perfil = { nome: "Bia", apelido: undefined };
+console.log(ana, bia);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/opcional.ts(3,7): error TS2375: Type '{ nome: string; apelido: undefined; }' is not assignable to type 'Perfil' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'apelido' are incompatible.
+    Type 'undefined' is not assignable to type 'string'.</pre>
+<p>A mensagem já dá a saída: se você quer permitir <code>undefined</code> escrito, declare <code>apelido?: string | undefined</code>. Ou simplesmente não escreva a propriedade.</p>
+<hr>
+<h2>5. noEmitOnError e noEmit</h2>
+<p>Por padrão, o <code>tsc</code> avisa os erros <strong>e gera o JavaScript mesmo assim</strong>. Veja:</p>
+
+<pre class="file" data-file="src/emite.ts">const idade: number = "trinta";
+console.log(idade);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/emite.ts(1,7): error TS2322: Type 'string' is not assignable to type 'number'.
+$ ls dist
+emite.d.ts
+emite.d.ts.map
+emite.js
+emite.js.map
+$ node dist/emite.js
+trinta</pre>
+<p>Com <code>--noEmitOnError</code> (ou <code>"noEmitOnError": true</code> no <code>tsconfig.json</code>), se houver erro nada é gerado:</p>
+
+
+<pre class="term" data-cwd="~/projeto">$ npx tsc --noEmitOnError
+src/emite.ts(1,7): error TS2322: Type 'string' is not assignable to type 'number'.
+$ ls dist
+ls: cannot access 'dist': No such file or directory</pre>
+<p>E o <code>--noEmit</code> só confere os tipos, sem gerar nada (útil para checar rápido):</p>
+
+<pre class="file" data-file="src/ok.ts">console.log("tudo certo");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --noEmit
+$ ls
+node_modules
+package-lock.json
+package.json
+src
+tsconfig.json</pre>
+<p>Nenhuma saída e nenhuma pasta <code>dist</code>: deu tudo certo e nada foi gerado.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Nome de opção com erro de digitação</strong>
+
+<pre class="file" data-file="tsconfig.json">{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "module": "nodenext",
+    "stric": true
+  }
+}</pre>
+
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+tsconfig.json(6,5): error TS5023: Unknown compiler option 'stric'.</pre>
+<p>O compilador não ignora opções desconhecidas: ele avisa com o <code>TS5023</code> e aponta a linha do <code>tsconfig.json</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Opção</th><th>Efeito</th></tr>
+<tr><td><code>strict</code></td><td>liga as verificações rigorosas (<code>noImplicitAny</code>, <code>strictNullChecks</code>…)</td></tr>
+<tr><td><code>noUncheckedIndexedAccess</code></td><td><code>lista[i]</code> vira <code>T | undefined</code></td></tr>
+<tr><td><code>exactOptionalPropertyTypes</code></td><td>opcional não aceita <code>undefined</code> escrito</td></tr>
+<tr><td><code>noEmitOnError</code></td><td>não gera JS se houver erro</td></tr>
+<tr><td><code>noEmit</code></td><td>só confere tipos</td></tr>
+<tr><td><code>npx tsc --opcao valor</code></td><td>muda uma opção só nesta execução</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Para onde vai</h3><p>Complete a opção que define a pasta do JavaScript gerado:</p><div class="ex-code">"<input data-answer="outDir" aria-label="opcao">": "./dist"</div></div>
+<div class="exercise"><h3>2. Só conferir</h3><p>Complete para conferir os tipos sem gerar arquivos:</p><div class="ex-code">npx tsc --<input data-answer="noEmit" aria-label="opcao"></div></div>
+<div class="exercise"><h3>3. Permitir undefined escrito</h3><p>Complete o tipo para aceitar <code>apelido: undefined</code> com <code>exactOptionalPropertyTypes</code>:</p><div class="ex-code">apelido?: string | <input data-answer="undefined" aria-label="tipo"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Com o tsconfig padrão, o que acontece quando há erro de tipo?</p>
+<label><input type="radio" name="q4"> Nada é gerado</label>
+<label><input type="radio" name="q4"> O erro é mostrado e o JavaScript é gerado mesmo assim</label>
+<label><input type="radio" name="q4"> O tsc corrige o erro sozinho</label>
+<label><input type="radio" name="q4"> O Node se recusa a rodar</label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. Com <code>noUncheckedIndexedAccess</code>, qual o tipo de <code>nomes[0]</code> se <code>nomes: string[]</code>?</p>
+<label><input type="radio" name="q5"> <code>string | undefined</code></label>
+<label><input type="radio" name="q5"> <code>string</code></label>
+<label><input type="radio" name="q5"> <code>any</code></label>
+<label><input type="radio" name="q5"> <code>never</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:\?\?|\?\.|if\s*\(;;semerro;;out:Primeiro da fila: ninguém">
+<p class="try-task"><strong>Missão:</strong> a fila pode estar vazia. Corrija o código para compilar com <code>noUncheckedIndexedAccess</code> e mostrar <code>Primeiro da fila: ninguém</code> quando não houver ninguém (dica: <code>??</code>).</p>
+<pre class="script" data-file="src/missao.ts">
+const fila: string[] = [];
+const primeiro: string = fila[0];
+console.log("Primeiro da fila: " + primeiro);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const fila: string[] = [];
+const primeiro: string = fila[0] ?? "ninguém";
+console.log("Primeiro da fila: " + primeiro);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Primeiro da fila: ninguém
+</pre>
+</div>
+<div class="trycmd" data-goal="src:cor\?:\s*string\s*\|\s*undefined;;semerro;;out:{ nome: 'Caneta', cor: undefined }">
+<p class="try-task"><strong>Missão:</strong> sem mexer no objeto, mude o tipo <code>Item</code> para que <code>cor</code> aceite <code>undefined</code> escrito. Saída esperada: <code>{ nome: 'Caneta', cor: undefined }</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Item = { nome: string; cor?: string };
+const item: Item = { nome: "Caneta", cor: undefined };
+console.log(item);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Item = { nome: string; cor?: string | undefined };
+const item: Item = { nome: "Caneta", cor: undefined };
+console.log(item);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+{ nome: 'Caneta', cor: undefined }
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>O <code>tsconfig.json</code> diz onde estão os arquivos, para onde vai o JS e quão rigoroso é o compilador.</li>
+<li><code>strict</code> traz <code>noImplicitAny</code> e <code>strictNullChecks</code>, entre outras.</li>
+<li><code>noUncheckedIndexedAccess</code> e <code>exactOptionalPropertyTypes</code> deixam o tipo mais honesto.</li>
+<li>Por padrão o JS sai mesmo com erro; use <code>noEmitOnError</code> ou <code>noEmit</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

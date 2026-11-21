@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Módulos — import, export, export default e import type | Guia TypeScript</title>
+<meta name="description" content="Módulos em TypeScript com ES modules: export e import nomeados, export default, import * as, reexportação, import type e as extensões .js exigidas pelo module nodenext, com erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Módulos (<span class="hl">import</span> e export)</h1>
+
+<p class="intro">Programa de verdade não cabe num arquivo só. Com <strong>módulos</strong>, cada arquivo guarda uma parte e <strong>exporta</strong> o que os outros podem usar; quem precisa <strong>importa</strong>. O TypeScript confere os tipos entre os arquivos, e o nosso projeto (com <code>"type": "module"</code> e <code>module: nodenext</code>) usa os módulos modernos do JavaScript.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li><code>export</code> e <code>import { … }</code> nomeados.</li>
+<li>Por que o import termina em <code>.js</code> mesmo apontando para um <code>.ts</code>.</li>
+<li><code>export default</code>, <code>import * as</code> e reexportação.</li>
+<li><code>import type</code> e o <code>verbatimModuleSyntax</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Exportar e importar</h2>
+<p>Crie dois arquivos. O <code>matematica.ts</code> exporta uma função, uma constante e um tipo:</p>
+<pre class="file" data-file="src/matematica.ts">export const PI_APROX = 3.14;
+
+export function areaCirculo(raio: number): number {
+  return PI_APROX * raio * raio;
+}
+
+export type Ponto = { x: number; y: number };
+
+function segredo() {
+  return "não exportado";
+}</pre>
+<p>O <code>main.ts</code> importa o que precisa:</p>
+<pre class="file" data-file="src/main.ts">import { areaCirculo, PI_APROX } from "./matematica.js";
+import type { Ponto } from "./matematica.js";
+
+const p: Ponto = { x: 1, y: 2 };
+console.log(PI_APROX, areaCirculo(2));
+console.log(p);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/main.js
+3.14 12.56
+{ x: 1, y: 2 }
+$ ls dist
+main.d.ts
+main.d.ts.map
+main.js
+main.js.map
+matematica.d.ts
+matematica.d.ts.map
+matematica.js
+matematica.js.map</pre>
+<p>Cada <code>.ts</code> de <code>src/</code> virou um <code>.js</code> em <code>dist/</code>, e o <code>node dist/main.js</code> carregou o <code>matematica.js</code> sozinho. Os arquivos <code>.d.ts</code> e <code>.map</code> vêm das opções <code>declaration</code> e <code>sourceMap</code> do <code>tsconfig.json</code> (veja a aula de tsconfig).</p>
+<div class="tip"><strong>Por que ".js" se o arquivo é ".ts"?</strong><p>O caminho do import é o que vai existir quando o programa <strong>rodar</strong>: lá em <code>dist/</code> só há <code>.js</code>. O TypeScript entende que <code>./matematica.js</code> se refere ao <code>matematica.ts</code> enquanto confere os tipos.</p></div>
+<hr>
+<h2>2. Os erros mais comuns com módulos</h2>
+
+
+<pre class="file" data-file="src/main.ts">import { areaCirculo } from "./matematica";
+import { segredo } from "./matematica.js";
+import { areaQuadrado } from "./matematica.js";
+import { algo } from "./nao-existe.js";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/main.ts(1,29): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './matematica.js'?
+src/main.ts(2,10): error TS2459: Module '"./matematica.js"' declares 'segredo' locally, but it is not exported.
+src/main.ts(3,10): error TS2305: Module '"./matematica.js"' has no exported member 'areaQuadrado'.
+src/main.ts(4,22): error TS2307: Cannot find module './nao-existe.js' or its corresponding type declarations.</pre>
+<ul>
+<li><code>TS2835</code>: faltou a extensão; a mensagem já sugere <code>./matematica.js</code>.</li>
+<li><code>TS2459</code>: <code>segredo</code> existe, mas não foi exportado.</li>
+<li><code>TS2305</code>: o módulo não exporta esse nome.</li>
+<li><code>TS2307</code>: o arquivo não existe.</li>
+</ul>
+<hr>
+<h2>3. import type e verbatimModuleSyntax</h2>
+<p>Tipos não existem no JavaScript gerado. O nosso <code>tsconfig.json</code> liga o <code>verbatimModuleSyntax</code>, que obriga a <strong>marcar</strong> os imports que são só de tipo. Assim o <code>tsc</code> (e outras ferramentas) sabem que podem apagar a linha:</p>
+
+<pre class="file" data-file="src/tipos.ts">export type Usuario = { nome: string };
+export interface Produto { preco: number }</pre>
+<pre class="file" data-file="src/main.ts">import { Usuario, Produto } from "./tipos.js";
+const u: Usuario = { nome: "Ana" };
+console.log(u);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/main.ts(1,10): error TS1484: 'Usuario' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/main.ts(1,19): error TS1484: 'Produto' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.</pre>
+<p>O erro <code>TS1484</code> aparece uma vez para cada nome. As duas formas certas: <code>import type { Usuario, Produto } from "./tipos.js";</code> ou, misturando valores e tipos, <code>import { type Usuario, algumValor } from "…";</code>.</p>
+<hr>
+<h2>4. export default, import * as e reexportação</h2>
+
+<pre class="file" data-file="src/saudacao.ts">export default function saudar(nome: string): string {
+  return `Olá, ${nome}!`;
+}</pre>
+<pre class="file" data-file="src/conversao.ts">export const kmParaMilhas = (km: number) =&gt; km * 0.621371;
+export const celsiusParaF = (c: number) =&gt; c * 1.8 + 32;</pre>
+<pre class="file" data-file="src/index.ts">export { default as saudar } from "./saudacao.js";
+export * from "./conversao.js";</pre>
+<pre class="file" data-file="src/main.ts">import saudar from "./saudacao.js";
+import * as conv from "./conversao.js";
+import { celsiusParaF } from "./index.js";
+
+console.log(saudar("Bia"));
+console.log(conv.kmParaMilhas(10).toFixed(2));
+console.log(celsiusParaF(25));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/main.js
+Olá, Bia!
+6.21
+77</pre>
+<ul>
+<li><code>export default</code>: um valor “principal” por arquivo; quem importa escolhe o nome (<code>import saudar from …</code>), sem chaves.</li>
+<li><code>import * as conv</code>: junta tudo o que o módulo exporta num objeto.</li>
+<li><code>index.ts</code> com <code>export … from</code>: um arquivo que reexporta os outros, para quem importa ter um endereço só.</li>
+</ul>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Importar o default com chaves</strong>
+
+
+<pre class="file" data-file="src/main.ts">import { saudar } from "./saudacao.js";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/main.ts(1,10): error TS2614: Module '"./saudacao.js"' has no exported member 'saudar'. Did you mean to use 'import saudar from "./saudacao.js"' instead?</pre>
+<p>O <code>TS2614</code> já sugere a correção: o default se importa <strong>sem</strong> chaves: <code>import saudar from "./saudacao.js"</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>export function f() {}</code></td><td>exporta com nome</td></tr>
+<tr><td><code>import { f } from "./a.js"</code></td><td>importa pelo nome</td></tr>
+<tr><td><code>export default …</code> / <code>import x from "./a.js"</code></td><td>exporta/importa o principal</td></tr>
+<tr><td><code>import * as a from "./a.js"</code></td><td>tudo num objeto</td></tr>
+<tr><td><code>import type { T } from "./a.js"</code></td><td>só tipos (apagado no JS)</td></tr>
+<tr><td><code>export * from "./a.js"</code></td><td>reexporta tudo</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. A extensão</h3><p>Complete o caminho do import do arquivo <code>src/util.ts</code>:</p><div class="ex-code">import { soma } from "./util<input data-answer=".js" aria-label="extensao">";</div></div>
+<div class="exercise"><h3>2. Só tipo</h3><p>Complete:</p><div class="ex-code">import <input data-answer="type" aria-label="palavra"> { Usuario } from "./tipos.js";</div></div>
+<div class="exercise"><h3>3. Principal</h3><p>Complete para exportar a função como principal do arquivo:</p><div class="ex-code">export <input data-answer="default" aria-label="palavra"> function saudar() { … }</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Qual erro aparece ao importar algo que existe no arquivo, mas não foi exportado?</p>
+<label><input type="radio" name="q4"> <code>TS2307</code></label>
+<label><input type="radio" name="q4"> <code>TS2459</code></label>
+<label><input type="radio" name="q4"> <code>TS2835</code></label>
+<label><input type="radio" name="q4"> <code>TS7006</code></label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. Por que o import usa <code>.js</code>?</p>
+<label><input type="radio" name="q5"> Porque o arquivo de origem é JavaScript</label>
+<label><input type="radio" name="q5"> Por engano: deveria ser <code>.ts</code></label>
+<label><input type="radio" name="q5"> Porque o caminho é o que vai existir rodando, em <code>dist/</code></label>
+<label><input type="radio" name="q5"> Porque o Node não lê pastas</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:import\s*\{[^}]*\bdobro\b[^}]*\}\s*from\s*[&quot;']\./util\.js[&quot;'];;semerro;;out:Calculadora: 42">
+<p class="try-task"><strong>Missão:</strong> crie o arquivo <code>src/util.ts</code> abaixo e, em <code>src/missao.ts</code>, importe <code>dobro</code> e <code>NOME_APP</code> de <code>"./util.js"</code> para mostrar <code>Calculadora: 42</code> (o dobro de 21).</p>
+<p class="try-task">Antes, crie também o arquivo <code>src/util.ts</code>:</p>
+<pre class="file" data-file="src/util.ts">export function dobro(n: number): number {
+  return n * 2;
+}
+export const NOME_APP = "Calculadora";</pre>
+<pre class="script" data-file="src/missao.ts">
+console.log("Calculadora: " + 21 * 2);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import { dobro, NOME_APP } from "./util.js";
+console.log(`${NOME_APP}: ${dobro(21)}`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Calculadora: 42
+</pre>
+</div>
+<div class="trycmd" data-goal="src:import\s+type\s*\{\s*Tarefa\s*\}\s*from\s*[&quot;']\./modelos\.js[&quot;'];;semerro;;out:[x] estudar módulos">
+<p class="try-task"><strong>Missão:</strong> crie <code>src/modelos.ts</code> abaixo e, em <code>src/missao.ts</code>, corrija o import usando <code>import type</code>. Mostre <code>[x] estudar módulos</code>.</p>
+<p class="try-task">Antes, crie também o arquivo <code>src/modelos.ts</code>:</p>
+<pre class="file" data-file="src/modelos.ts">export type Tarefa = { titulo: string; feita: boolean };</pre>
+<pre class="script" data-file="src/missao.ts">
+import { Tarefa } from "./modelos.js";
+const t: Tarefa = { titulo: "estudar módulos", feita: true };
+console.log(`[${t.feita ? "x" : " "}] ${t.titulo}`);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+import type { Tarefa } from "./modelos.js";
+const t: Tarefa = { titulo: "estudar módulos", feita: true };
+console.log(`[${t.feita ? "x" : " "}] ${t.titulo}`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+[x] estudar módulos
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>export</code> mostra; <code>import { … } from "./arquivo.js"</code> usa. O <code>.js</code> é obrigatório no nosso projeto.</li>
+<li><code>export default</code> se importa sem chaves; <code>import * as</code> junta tudo.</li>
+<li>Com <code>verbatimModuleSyntax</code>, tipos se importam com <code>import type</code>.</li>
+<li>Erros comuns: <code>TS2835</code>, <code>TS2459</code>, <code>TS2305</code>, <code>TS2307</code>, <code>TS1484</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
