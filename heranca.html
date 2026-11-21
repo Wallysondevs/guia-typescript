@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herança e implements — extends, super, override, abstract e interfaces | Guia TypeScript</title>
+<meta name="description" content="Herança de classes em TypeScript com extends e super, override, protected, classes e métodos abstratos, e classes que implementam interfaces com implements.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Herança e <span class="hl">implements</span></h1>
+
+<p class="intro">Classes podem <strong>herdar</strong> de outras (<code>extends</code>): a filha ganha tudo da mãe e acrescenta ou troca o que quiser. E uma classe pode <strong>prometer</strong> seguir uma interface (<code>implements</code>): o compilador confere se a promessa foi cumprida.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li><code>extends</code> e <code>super</code>.</li>
+<li><code>override</code> e o <code>protected</code> na prática.</li>
+<li>Classes e métodos <code>abstract</code>.</li>
+<li><code>implements</code>: classes que seguem uma interface.</li>
+</ul></div>
+<hr>
+<h2>1. extends e super</h2>
+<pre class="file" data-file="src/heranca.ts">class Animal {
+  constructor(protected nome: string) {}
+
+  apresentar(): string {
+    return `Eu sou ${this.nome}`;
+  }
+}
+
+class Cachorro extends Animal {
+  constructor(nome: string, private raca: string) {
+    super(nome);
+  }
+
+  override apresentar(): string {
+    return super.apresentar() + `, um ${this.raca}`;
+  }
+
+  latir(): string {
+    return `${this.nome}: Au au!`;
+  }
+}
+
+const rex = new Cachorro("Rex", "vira-lata");
+console.log(rex.apresentar());
+console.log(rex.latir());
+
+const bicho: Animal = rex;
+console.log(bicho.apresentar());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/heranca.js
+Eu sou Rex, um vira-lata
+Rex: Au au!
+Eu sou Rex, um vira-lata</pre>
+<ul>
+<li><code>super(nome)</code> chama o construtor da mãe; é obrigatório antes de usar <code>this</code>.</li>
+<li><code>override</code> marca que o método substitui um da mãe; <code>super.apresentar()</code> chama a versão original.</li>
+<li><code>protected nome</code> é visível na filha (<code>this.nome</code> em <code>latir</code>), mas não fora.</li>
+<li>Um <code>Cachorro</code> pode ser guardado numa variável <code>Animal</code>, e chamar <code>apresentar()</code> usa a versão do cachorro.</li>
+</ul>
+<hr>
+<h2>2. Esquecer o super</h2>
+
+<pre class="file" data-file="src/sem-super.ts">class Animal {
+  constructor(protected nome: string) {}
+}
+class Gato extends Animal {
+  constructor(nome: string) {
+    console.log("criando gato");
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-super.ts(5,3): error TS2377: Constructors for derived classes must contain a 'super' call.</pre>
+<hr>
+<h2>3. Classes abstratas</h2>
+<p>Uma classe <code>abstract</code> é um molde incompleto: não se cria objeto dela, só das filhas. Um método <code>abstract</code> não tem corpo, e toda filha é obrigada a escrevê-lo:</p>
+
+<pre class="file" data-file="src/abstrata.ts">abstract class Forma {
+  abstract area(): number;
+
+  descrever(): string {
+    return `${this.constructor.name} com área ${this.area().toFixed(2)}`;
+  }
+}
+
+class Circulo extends Forma {
+  constructor(private raio: number) {
+    super();
+  }
+  area(): number {
+    return Math.PI * this.raio ** 2;
+  }
+}
+
+class Quadrado extends Forma {
+  constructor(private lado: number) {
+    super();
+  }
+  area(): number {
+    return this.lado ** 2;
+  }
+}
+
+const formas: Forma[] = [new Circulo(1), new Quadrado(3)];
+for (const f of formas) console.log(f.descrever());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/abstrata.js
+Circulo com área 3.14
+Quadrado com área 9.00</pre>
+<p>E as duas regras da classe abstrata, quebradas de propósito:</p>
+
+<pre class="file" data-file="src/abstrata-erro.ts">abstract class Forma {
+  abstract area(): number;
+}
+const f = new Forma();
+
+class Triangulo extends Forma {}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/abstrata-erro.ts(4,11): error TS2511: Cannot create an instance of an abstract class.
+src/abstrata-erro.ts(6,7): error TS2515: Non-abstract class 'Triangulo' does not implement inherited abstract member area from class 'Forma'.</pre>
+<hr>
+<h2>4. implements</h2>
+<p>Uma interface pode servir de <strong>contrato</strong> para uma classe. Com <code>implements</code>, o compilador confere se a classe tem tudo o que a interface pede:</p>
+
+<pre class="file" data-file="src/implements.ts">interface Imprimivel {
+  imprimir(): string;
+}
+interface Salvavel {
+  salvar(): boolean;
+}
+
+class Relatorio implements Imprimivel, Salvavel {
+  constructor(private titulo: string) {}
+  imprimir(): string {
+    return "== " + this.titulo + " ==";
+  }
+  salvar(): boolean {
+    return true;
+  }
+}
+
+const docs: Imprimivel[] = [new Relatorio("Vendas"), { imprimir: () =&gt; "nota solta" }];
+for (const d of docs) console.log(d.imprimir());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/implements.js
+== Vendas ==
+nota solta</pre>
+<p>Uma classe herda de <strong>uma</strong> só classe, mas pode implementar <strong>várias</strong> interfaces. E repare que o objeto solto <code>{ imprimir: … }</code> também serve como <code>Imprimivel</code>: a tipagem é estrutural.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Prometer e não cumprir</strong>
+
+<pre class="file" data-file="src/promessa.ts">interface Imprimivel {
+  imprimir(): string;
+}
+class Foto implements Imprimivel {
+  mostrar() {
+    return "foto";
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/promessa.ts(4,7): error TS2420: Class 'Foto' incorrectly implements interface 'Imprimivel'.
+  Property 'imprimir' is missing in type 'Foto' but required in type 'Imprimivel'.</pre>
+</div>
+<div class="cenario"><strong>override sem método na mãe</strong>
+
+<pre class="file" data-file="src/override.ts">class Animal {
+  falar() { return "..."; }
+}
+class Pato extends Animal {
+  override grasnar() { return "quack"; }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/override.ts(5,12): error TS4113: This member cannot have an 'override' modifier because it is not declared in the base class 'Animal'.</pre>
+<p>O <code>override</code> protege contra erros de digitação: se a mãe não tem o método, o compilador avisa.</p>
+</div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Herdar</h3><p>Complete:</p><div class="ex-code">class Gato <input data-answer="extends" aria-label="palavra"> Animal { }</div></div>
+<div class="exercise"><h3>2. Construtor da mãe</h3><p>Complete a chamada dentro do construtor da filha:</p><div class="ex-code"><input data-answer="super" aria-label="palavra">(nome);</div></div>
+<div class="exercise"><h3>3. Contrato</h3><p>Complete para a classe seguir a interface:</p><div class="ex-code">class Relatorio <input data-answer="implements" aria-label="palavra"> Imprimivel { … }</div></div>
+<div class="mc" data-answer="4"><p class="mc-q">4. O que não dá para fazer com uma classe <code>abstract</code>?</p>
+<label><input type="radio" name="q4"> Ter métodos com corpo</label>
+<label><input type="radio" name="q4"> Ter filhas</label>
+<label><input type="radio" name="q4"> Ter campos</label>
+<label><input type="radio" name="q4"> Criar objetos dela com <code>new</code></label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. Quantas interfaces uma classe pode implementar?</p>
+<label><input type="radio" name="q5"> Várias, separadas por vírgula</label>
+<label><input type="radio" name="q5"> Só uma</label>
+<label><input type="radio" name="q5"> Nenhuma, só classes abstratas</label>
+<label><input type="radio" name="q5"> Duas no máximo</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:class\s+Moto\s+extends\s+Veiculo;;src:super\s*\(;;semerro;;out:Honda: 2 rodas">
+<p class="try-task"><strong>Missão:</strong> crie <code>class Moto extends Veiculo</code>, cujo construtor recebe só a marca e chama <code>super(marca, 2)</code>. Mostre <code>new Moto("Honda").descrever()</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+class Veiculo {
+  constructor(protected marca: string, protected rodas: number) {}
+  descrever(): string {
+    return `${this.marca}: ${this.rodas} rodas`;
+  }
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+class Veiculo {
+  constructor(protected marca: string, protected rodas: number) {}
+  descrever(): string {
+    return `${this.marca}: ${this.rodas} rodas`;
+  }
+}
+class Moto extends Veiculo {
+  constructor(marca: string) {
+    super(marca, 2);
+  }
+}
+console.log(new Moto("Honda").descrever());
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Honda: 2 rodas
+</pre>
+</div>
+<div class="trycmd" data-goal="src:implements\s+Pagamento;;src:pagar\s*\(\s*\w+\s*:\s*number\s*\)\s*(:\s*string\s*)?\{;;semerro;;out:Pix de R$ 50 enviado">
+<p class="try-task"><strong>Missão:</strong> faça a classe <code>Pix</code> implementar a interface <code>Pagamento</code> e mostre <code>new Pix().pagar(50)</code>, que devolve <code>Pix de R$ 50 enviado</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+interface Pagamento {
+  pagar(valor: number): string;
+}
+class Pix {
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+interface Pagamento {
+  pagar(valor: number): string;
+}
+class Pix implements Pagamento {
+  pagar(valor: number): string {
+    return `Pix de R$ ${valor} enviado`;
+  }
+}
+console.log(new Pix().pagar(50));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Pix de R$ 50 enviado
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>extends</code> herda; <code>super(…)</code> chama o construtor da mãe; <code>override</code> marca a substituição.</li>
+<li><code>protected</code> é visível na classe e nas filhas.</li>
+<li><code>abstract</code>: molde incompleto, sem <code>new</code>; métodos abstratos obrigam as filhas.</li>
+<li><code>implements</code> confere se a classe cumpre uma ou várias interfaces.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classes e Modificadores — public, private, protected, readonly e #privado | Guia TypeScript</title>
+<meta name="description" content="Classes em TypeScript: campos tipados, construtor, métodos, os modificadores public, private, protected e readonly, propriedades de parâmetro, getters/setters, static e a diferença entre private e #campo.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Classes e <span class="hl">Modificadores</span></h1>
+
+<p class="intro">Uma <strong>classe</strong> é um molde para criar objetos do mesmo tipo, com dados (campos) e comportamento (métodos). O TypeScript acrescenta às classes do JavaScript os <strong>tipos</strong> e os <strong>modificadores de acesso</strong>, que dizem quem pode mexer em cada campo.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Campos tipados, construtor e métodos.</li>
+<li><code>public</code>, <code>private</code>, <code>protected</code> e <code>readonly</code>.</li>
+<li>O atalho das propriedades de parâmetro: <code>constructor(private saldo: number)</code>.</li>
+<li><code>get</code>/<code>set</code>, <code>static</code> e o <code>#campo</code> privado do JavaScript.</li>
+</ul></div>
+<hr>
+<h2>1. Uma classe simples</h2>
+<pre class="file" data-file="src/conta.ts">class Conta {
+  titular: string;
+  saldo: number;
+
+  constructor(titular: string, saldoInicial: number) {
+    this.titular = titular;
+    this.saldo = saldoInicial;
+  }
+
+  depositar(valor: number): void {
+    this.saldo += valor;
+  }
+
+  extrato(): string {
+    return `${this.titular}: R$ ${this.saldo.toFixed(2)}`;
+  }
+}
+
+const c = new Conta("Ana", 100);
+c.depositar(50);
+console.log(c.extrato());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/conta.js
+Ana: R$ 150.00</pre>
+<p>Com o <code>strict</code>, todo campo precisa receber valor no construtor (ou ter um valor inicial). Esquecer dá erro:</p>
+
+<pre class="file" data-file="src/sem-valor.ts">class Conta {
+  titular: string;
+  saldo: number;
+  constructor(titular: string) {
+    this.titular = titular;
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-valor.ts(3,3): error TS2564: Property 'saldo' has no initializer and is not definitely assigned in the constructor.</pre>
+<hr>
+<h2>2. private, protected, public e readonly</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Modificador</th><th>Quem pode acessar</th></tr>
+<tr><td><code>public</code> (padrão)</td><td>qualquer um</td></tr>
+<tr><td><code>private</code></td><td>só a própria classe</td></tr>
+<tr><td><code>protected</code></td><td>a classe e as subclasses (aula <a href="heranca.html">Herança</a>)</td></tr>
+<tr><td><code>readonly</code></td><td>lê à vontade, mas só atribui no construtor</td></tr>
+</table></div>
+
+<pre class="file" data-file="src/modificadores.ts">class Conta {
+  readonly numero: number;
+  private saldo: number;
+
+  constructor(numero: number, saldo: number) {
+    this.numero = numero;
+    this.saldo = saldo;
+  }
+
+  sacar(valor: number): boolean {
+    if (valor &gt; this.saldo) return false;
+    this.saldo -= valor;
+    return true;
+  }
+
+  verSaldo(): number {
+    return this.saldo;
+  }
+}
+
+const c = new Conta(1234, 100);
+console.log(c.sacar(30), c.verSaldo());
+console.log(c.sacar(500), c.verSaldo());
+
+c.saldo = 1000000;
+c.numero = 9999;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/modificadores.ts(25,3): error TS2341: Property 'saldo' is private and only accessible within class 'Conta'.
+src/modificadores.ts(26,3): error TS2540: Cannot assign to 'numero' because it is a read-only property.</pre>
+<p>O <code>private</code> protege o saldo: só dá para mexer pelos métodos, que conferem as regras. Tirando as duas últimas linhas, o programa roda:</p>
+
+
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/modificadores.js
+true 70
+false 70</pre>
+<hr>
+<h2>3. O atalho: propriedades de parâmetro</h2>
+<p>Escrever o campo, o parâmetro e o <code>this.x = x</code> é repetitivo. Pondo o modificador no parâmetro do construtor, o TypeScript cria o campo e faz a atribuição sozinho:</p>
+
+<pre class="file" data-file="src/atalho.ts">class Produto {
+  constructor(
+    public readonly nome: string,
+    private preco: number,
+  ) {}
+
+  comDesconto(pct: number): number {
+    return this.preco * (1 - pct / 100);
+  }
+}
+
+const p = new Produto("Fone", 200);
+console.log(p.nome, p.comDesconto(10));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/atalho.js
+Fone 180</pre>
+<pre class="file" data-file="dist/atalho.js">class Produto {
+    nome;
+    preco;
+    constructor(nome, preco) {
+        this.nome = nome;
+        this.preco = preco;
+    }
+    comDesconto(pct) {
+        return this.preco * (1 - pct / 100);
+    }
+}
+const p = new Produto("Fone", 200);
+console.log(p.nome, p.comDesconto(10));
+export {};
+//# sourceMappingURL=atalho.js.map</pre>
+<p>No JavaScript gerado, o <code>tsc</code> escreveu os campos e as atribuições por você.</p>
+<hr>
+<h2>4. get, set e static</h2>
+
+<pre class="file" data-file="src/get-set.ts">class Temperatura {
+  static zeroAbsoluto = -273.15;
+  private celsius = 0;
+
+  get fahrenheit(): number {
+    return this.celsius * 1.8 + 32;
+  }
+
+  set graus(valor: number) {
+    if (valor &lt; Temperatura.zeroAbsoluto) {
+      throw new Error("abaixo do zero absoluto");
+    }
+    this.celsius = valor;
+  }
+}
+
+const t = new Temperatura();
+t.graus = 25;
+console.log(t.fahrenheit);
+console.log(Temperatura.zeroAbsoluto);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/get-set.js
+77
+-273.15</pre>
+<p>O <code>get</code> se lê como um campo (<code>t.fahrenheit</code>, sem parênteses) e o <code>set</code> se usa com <code>=</code>. O <code>static</code> pertence à classe, não aos objetos: <code>Temperatura.zeroAbsoluto</code>.</p>
+<hr>
+<h2>5. private do TypeScript x #privado do JavaScript</h2>
+<p>O <code>private</code> é só uma regra do compilador: no JavaScript gerado, o campo continua acessível. Já o <code>#campo</code> é privado <strong>de verdade</strong>, também rodando:</p>
+
+<pre class="file" data-file="src/hash.ts">class Cofre {
+  private segredoTs = "ts";
+  #segredoJs = "js";
+
+  revelar() {
+    return this.#segredoJs;
+  }
+}
+
+const c = new Cofre();
+console.log((c as any).segredoTs);
+console.log((c as any)["#segredoJs"]);
+console.log(c.revelar());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/hash.js
+ts
+undefined
+js</pre>
+<p>O <code>as any</code> “desliga” o compilador (aula <a href="assercoes.html">Asserções</a>) e mostra a diferença: o <code>private</code> vazou (<code>ts</code>), o <code>#segredoJs</code> não (<code>undefined</code>).</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Esquecer o this</strong>
+
+<pre class="file" data-file="src/sem-this.ts">class Contador {
+  total = 0;
+  somar() {
+    total++;
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-this.ts(4,5): error TS2663: Cannot find name 'total'. Did you mean the instance member 'this.total'?</pre>
+<p>Dentro do método, o campo é <code>this.total</code>.</p>
+</div>
+<div class="cenario"><strong>Esquecer o new</strong>
+
+<pre class="file" data-file="src/sem-new.ts">class Ponto {
+  constructor(public x: number, public y: number) {}
+}
+const p = Ponto(1, 2);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-new.ts(4,11): error TS2348: Value of type 'typeof Ponto' is not callable. Did you mean to include 'new'?</pre>
+</div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Só a classe</h3><p>Complete para o campo ser acessível só dentro da classe:</p><div class="ex-code"><input data-answer="private" aria-label="modificador"> senha: string;</div></div>
+<div class="exercise"><h3>2. Atalho</h3><p>Complete para criar o campo público <code>nome</code> direto no construtor:</p><div class="ex-code">constructor(<input data-answer="public" aria-label="modificador"> nome: string) {}</div></div>
+<div class="exercise"><h3>3. Da classe</h3><p>Complete para o campo pertencer à classe, e não aos objetos:</p><div class="ex-code"><input data-answer="static" aria-label="modificador"> versao = "1.0";</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Qual modificador deixa ler, mas só atribuir no construtor?</p>
+<label><input type="radio" name="q4"> <code>private</code></label>
+<label><input type="radio" name="q4"> <code>protected</code></label>
+<label><input type="radio" name="q4"> <code>readonly</code></label>
+<label><input type="radio" name="q4"> <code>static</code></label></div>
+<div class="mc" data-answer="2"><p class="mc-q">5. Qual campo continua privado também no JavaScript rodando?</p>
+<label><input type="radio" name="q5"> <code>private segredo</code></label>
+<label><input type="radio" name="q5"> <code>#segredo</code></label>
+<label><input type="radio" name="q5"> <code>protected segredo</code></label>
+<label><input type="radio" name="q5"> <code>readonly segredo</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:class\s+Retangulo;;src:constructor\s*\(\s*(public|private|readonly|protected)[^)]*:\s*number;;semerro;;out:Área: 12;;out:Perímetro: 14">
+<p class="try-task"><strong>Missão:</strong> crie <code>class Retangulo</code> com o construtor <code>constructor(private largura: number, private altura: number)</code> e os métodos <code>area()</code> e <code>perimetro()</code>. Para 3 por 4, mostre <code>Área: 12</code> e <code>Perímetro: 14</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+class Retangulo {
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+class Retangulo {
+  constructor(private largura: number, private altura: number) {}
+  area(): number {
+    return this.largura * this.altura;
+  }
+  perimetro(): number {
+    return 2 * (this.largura + this.altura);
+  }
+}
+const r = new Retangulo(3, 4);
+console.log("Área: " + r.area());
+console.log("Perímetro: " + r.perimetro());
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Área: 12
+Perímetro: 14
+</pre>
+</div>
+<div class="trycmd" data-goal="src:private\s+pontos;;src:\.pontos\s*=\s*\d+;;erro:error TS2341: Property 'pontos' is private and only accessible within class 'Jogador'.">
+<p class="try-task"><strong>Missão:</strong> torne o campo <code>pontos</code> da classe <code>Jogador</code> <code>private</code> e cole o erro que aparece na linha que tenta trapacear.</p>
+<pre class="script" data-file="src/missao.ts">
+class Jogador {
+  pontos = 0;
+  marcar() {
+    this.pontos += 10;
+  }
+}
+const j = new Jogador();
+j.pontos = 9999;
+console.log(j.pontos);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+class Jogador {
+  private pontos = 0;
+  marcar() {
+    this.pontos += 10;
+  }
+}
+const j = new Jogador();
+j.pontos = 9999;
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+src/missao.ts(8,3): error TS2341: Property 'pontos' is private and only accessible within class 'Jogador'.
+</pre>
+</div>
+<div class="trycmd" data-goal="src:get\s+completo\s*\(\s*\)\s*(:\s*string\s*)?\{;;semerro;;out:Ana Souza">
+<p class="try-task"><strong>Missão:</strong> acrescente à classe <code>Pessoa</code> um <code>get completo()</code> que devolve nome e sobrenome separados por espaço, e mostre <code>p.completo</code> (sem parênteses).</p>
+<pre class="script" data-file="src/missao.ts">
+class Pessoa {
+  constructor(public nome: string, public sobrenome: string) {}
+}
+const p = new Pessoa("Ana", "Souza");
+console.log(p.nome);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+class Pessoa {
+  constructor(public nome: string, public sobrenome: string) {}
+  get completo(): string {
+    return `${this.nome} ${this.sobrenome}`;
+  }
+}
+const p = new Pessoa("Ana", "Souza");
+console.log(p.completo);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Ana Souza
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Classes têm campos tipados (com valor garantido pelo construtor) e métodos.</li>
+<li><code>private</code>, <code>protected</code>, <code>public</code> e <code>readonly</code> controlam o acesso, na hora de compilar.</li>
+<li><code>constructor(private x: number)</code> cria e preenche o campo sozinho.</li>
+<li><code>#campo</code> é privado também no JavaScript rodando.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

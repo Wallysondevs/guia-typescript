@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generics — funções, tipos e classes com tipo como parâmetro (&lt;T&gt;) | Guia TypeScript</title>
+<meta name="description" content="Generics em TypeScript: funções genéricas com &lt;T&gt;, inferência do tipo genérico, interfaces, types e classes genéricas, e por que generics são melhores que any.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Generics</span></h1>
+
+<p class="intro">Às vezes uma função funciona igual para <strong>qualquer</strong> tipo: pegar o primeiro item de uma lista, embrulhar um valor numa caixa. Com <code>any</code>, você perde o tipo no caminho. Com <strong>generics</strong>, o tipo vira um <strong>parâmetro</strong> (<code>&lt;T&gt;</code>): entra número, sai número; entra texto, sai texto.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Por que <code>any</code> não resolve, com um erro que só aparece rodando.</li>
+<li>Funções genéricas: <code>function primeiro&lt;T&gt;(lista: T[]): T | undefined</code>.</li>
+<li>Como o TypeScript infere o <code>T</code> e como passá-lo à mão.</li>
+<li>Types, interfaces e classes genéricas.</li>
+</ul></div>
+<hr>
+<h2>1. O problema com any</h2>
+<pre class="file" data-file="src/com-any.ts">function primeiro(lista: any[]): any {
+  return lista[0];
+}
+
+const n = primeiro([10, 20, 30]);
+console.log(n.toUpperCase());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/com-any.js
+file:///home/ana/projeto/dist/com-any.js:5
+console.log(n.toUpperCase());
+              ^
+
+TypeError: n.toUpperCase is not a function
+    at file:///home/ana/projeto/dist/com-any.js:5:15
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.1</pre>
+<p>O compilador não reclamou, porque o retorno é <code>any</code>. O erro só apareceu rodando. Perdemos a informação de que a lista era de números.</p>
+<hr>
+<h2>2. A versão genérica</h2>
+<dl class="anatomy">
+<dt>function primeiro</dt><dd>o nome da função</dd>
+<dt>&lt;T&gt;</dt><dd>o parâmetro de tipo: um “espaço” que será preenchido com um tipo</dd>
+<dt>(lista: T[])</dt><dd>recebe uma lista de <code>T</code></dd>
+<dt>: T | undefined</dt><dd>devolve um <code>T</code> (ou <code>undefined</code>, se a lista estiver vazia)</dd>
+</dl>
+
+<pre class="file" data-file="src/generico.ts">function primeiro&lt;T&gt;(lista: T[]): T | undefined {
+  return lista[0];
+}
+
+const n = primeiro([10, 20, 30]);
+const s = primeiro(["ana", "bia"]);
+console.log(n, s);
+
+const erro: string = primeiro([10, 20, 30]);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/generico.ts(9,7): error TS2322: Type 'number | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.</pre>
+<p>Ninguém escreveu o <code>T</code> na chamada: o TypeScript olhou o argumento <code>[10, 20, 30]</code> e concluiu <code>T = number</code>. Por isso ele sabe que o resultado é <code>number | undefined</code> e não deixa guardar numa <code>string</code>.</p>
+<p>Também dá para passar o tipo à mão, entre <code>&lt; &gt;</code>:</p>
+
+<pre class="file" data-file="src/explicito.ts">function embrulhar&lt;T&gt;(valor: T): T[] {
+  return [valor];
+}
+const a = embrulhar&lt;string&gt;("oi");
+const b = embrulhar(42);
+console.log(a, b);
+const c = embrulhar&lt;string&gt;(42);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/explicito.ts(7,29): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.</pre>
+<hr>
+<h2>3. Mais de um parâmetro de tipo</h2>
+
+<pre class="file" data-file="src/par.ts">function par&lt;A, B&gt;(a: A, b: B): [A, B] {
+  return [a, b];
+}
+
+function mapear&lt;T, R&gt;(lista: T[], fn: (item: T) =&gt; R): R[] {
+  const saida: R[] = [];
+  for (const item of lista) saida.push(fn(item));
+  return saida;
+}
+
+console.log(par("Ana", 30));
+console.log(mapear([1, 2, 3], (n) =&gt; "#" + n));
+console.log(mapear(["ana", "bia"], (s) =&gt; s.length));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/par.js
+[ 'Ana', 30 ]
+[ '#1', '#2', '#3' ]
+[ 3, 3 ]</pre>
+<p>É assim que o <code>map</code> dos arrays é tipado: entra uma lista de <code>T</code>, sai uma lista de <code>R</code>, o que a sua função devolver.</p>
+<hr>
+<h2>4. Types e interfaces genéricas</h2>
+
+<pre class="file" data-file="src/tipos-genericos.ts">type Resposta&lt;T&gt; = {
+  ok: boolean;
+  dados: T;
+};
+
+interface Caixa&lt;T&gt; {
+  conteudo: T;
+  rotulo: string;
+}
+
+const r1: Resposta&lt;number[]&gt; = { ok: true, dados: [1, 2, 3] };
+const r2: Resposta&lt;{ nome: string }&gt; = { ok: true, dados: { nome: "Ana" } };
+const cx: Caixa&lt;boolean&gt; = { conteudo: true, rotulo: "ligado?" };
+
+console.log(r1.dados.length, r2.dados.nome, cx.conteudo);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/tipos-genericos.js
+3 Ana true</pre>
+<p>Você já usava um tipo genérico sem saber: <code>Array&lt;number&gt;</code>. Outros comuns: <code>Promise&lt;T&gt;</code> (aula <a href="async-await.html">async/await</a>), <code>Map&lt;K, V&gt;</code> e <code>Set&lt;T&gt;</code>.</p>
+<hr>
+<h2>5. Classes genéricas</h2>
+
+<pre class="file" data-file="src/pilha.ts">class Pilha&lt;T&gt; {
+  private itens: T[] = [];
+
+  empilhar(item: T): void {
+    this.itens.push(item);
+  }
+
+  desempilhar(): T | undefined {
+    return this.itens.pop();
+  }
+
+  get tamanho(): number {
+    return this.itens.length;
+  }
+}
+
+const pratos = new Pilha&lt;string&gt;();
+pratos.empilhar("azul");
+pratos.empilhar("verde");
+console.log(pratos.desempilhar(), pratos.tamanho);
+
+const numeros = new Pilha&lt;number&gt;();
+numeros.empilhar(1);
+numeros.empilhar("dois");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/pilha.ts(24,18): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Usar propriedades que o T pode não ter</strong>
+
+<pre class="file" data-file="src/t-sem-length.ts">function tamanho&lt;T&gt;(x: T): number {
+  return x.length;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/t-sem-length.ts(2,12): error TS2339: Property 'length' does not exist on type 'T'.</pre>
+<p>O <code>T</code> pode ser qualquer coisa, inclusive um número, que não tem <code>length</code>. A solução é <strong>restringir</strong> o <code>T</code>: assunto da próxima aula, <a href="generics-restricoes.html">Restrições em Generics</a>.</p>
+</div>
+<div class="cenario"><strong>Map e Set com tipo</strong>
+
+<pre class="file" data-file="src/map.ts">const idades = new Map&lt;string, number&gt;();
+idades.set("Ana", 30);
+idades.set("Bia", "vinte");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/map.ts(3,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
+</div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Parâmetro de tipo</h3><p>Complete a função genérica:</p><div class="ex-code">function identidade<input data-answer="<T>" aria-label="parametro">(x: T): T { return x; }</div></div>
+<div class="exercise"><h3>2. Passar à mão</h3><p>Complete a chamada passando <code>string</code> como tipo:</p><div class="ex-code">embrulhar<input data-answer="<string>" aria-label="tipo">("oi");</div></div>
+<div class="exercise"><h3>3. Map</h3><p>Complete o tipo de um <code>Map</code> de texto para número:</p><div class="ex-code">new Map&lt;string, <input data-answer="number" aria-label="tipo">&gt;()</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Em <code>primeiro([10, 20])</code>, de onde vem o <code>T</code>?</p>
+<label><input type="radio" name="q4"> Vira <code>any</code></label>
+<label><input type="radio" name="q4"> É inferido pelo argumento: <code>number</code></label>
+<label><input type="radio" name="q4"> Precisa ser escrito sempre</label>
+<label><input type="radio" name="q4"> Vira <code>unknown</code></label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. Qual a vantagem de generics sobre <code>any</code>?</p>
+<label><input type="radio" name="q5"> O código roda mais rápido</label>
+<label><input type="radio" name="q5"> Nenhuma</label>
+<label><input type="radio" name="q5"> O tipo de saída acompanha o de entrada, e o compilador continua conferindo</label>
+<label><input type="radio" name="q5"> Generics existem no JavaScript gerado</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:function\s+ultimo\s*&lt;\s*T\s*&gt;\s*\(\s*\w+\s*:\s*T\[\]\s*\);;semerro;;out:30;;out:bia">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function ultimo&lt;T&gt;(lista: T[]): T | undefined</code>, que devolve o último item, e mostre o resultado para <code>[10, 20, 30]</code> e para <code>["ana", "bia"]</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function ultimo(lista: any[]): any {
+  return lista[lista.length - 1];
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function ultimo&lt;T&gt;(lista: T[]): T | undefined {
+  return lista[lista.length - 1];
+}
+console.log(ultimo([10, 20, 30]));
+console.log(ultimo(["ana", "bia"]));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+30
+bia
+</pre>
+</div>
+<div class="trycmd" data-goal="src:class\s+Fila\s*&lt;\s*T\s*&gt;;;semerro;;out:primeiro: Ana;;out:restam: 1">
+<p class="try-task"><strong>Missão:</strong> complete a <code>class Fila&lt;T&gt;</code> com <code>entrar(item: T)</code> e <code>sair(): T | undefined</code> (use <code>shift()</code>). Com uma fila de textos, faça <code>"Ana"</code> e <code>"Bia"</code> entrarem, e mostre <code>primeiro: Ana</code> e <code>restam: 1</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+class Fila {
+  itens: any[] = [];
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+class Fila&lt;T&gt; {
+  private itens: T[] = [];
+  entrar(item: T): void {
+    this.itens.push(item);
+  }
+  sair(): T | undefined {
+    return this.itens.shift();
+  }
+  get tamanho(): number {
+    return this.itens.length;
+  }
+}
+const f = new Fila&lt;string&gt;();
+f.entrar("Ana");
+f.entrar("Bia");
+console.log("primeiro: " + f.sair());
+console.log("restam: " + f.tamanho);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+primeiro: Ana
+restam: 1
+</pre>
+</div>
+<div class="trycmd" data-goal="src:Resposta\s*&lt;\s*string\[\]\s*&gt;;;semerro;;out:2 nomes: Ana, Bia">
+<p class="try-task"><strong>Missão:</strong> use o tipo genérico <code>Resposta&lt;T&gt;</code> com <code>T = string[]</code> para tipar <code>r</code> e mostre <code>2 nomes: Ana, Bia</code> usando <code>r.dados</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Resposta&lt;T&gt; = { ok: boolean; dados: T };
+const r = { ok: true, dados: ["Ana", "Bia"] };
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Resposta&lt;T&gt; = { ok: boolean; dados: T };
+const r: Resposta&lt;string[]&gt; = { ok: true, dados: ["Ana", "Bia"] };
+console.log(`${r.dados.length} nomes: ${r.dados.join(", ")}`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+2 nomes: Ana, Bia
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Generics transformam o tipo num parâmetro: <code>&lt;T&gt;</code>.</li>
+<li>O <code>T</code> costuma ser inferido pelos argumentos; dá para passar à mão com <code>f&lt;string&gt;(…)</code>.</li>
+<li>Types, interfaces e classes também podem ser genéricos: <code>Resposta&lt;T&gt;</code>, <code>Pilha&lt;T&gt;</code>.</li>
+<li>Diferente de <code>any</code>, o compilador continua conferindo tudo.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

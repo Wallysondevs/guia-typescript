@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restrições em Generics — T extends, keyof e valores padrão | Guia TypeScript</title>
+<meta name="description" content="Como restringir parâmetros genéricos em TypeScript com extends, usar K extends keyof T para acessar propriedades com segurança e dar valores padrão aos parâmetros de tipo.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Restrições em <span class="hl">Generics</span> (extends)</h1>
+
+<p class="intro">Um <code>T</code> sem regras pode ser qualquer coisa, então quase nada pode ser feito com ele. Com <code>T extends Algo</code>, você diz “T pode ser qualquer tipo, <strong>desde que</strong> tenha isto”. A função continua genérica, mas agora pode usar o que a restrição garante.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A restringir com <code>&lt;T extends { length: number }&gt;</code>.</li>
+<li>O par famoso <code>&lt;T, K extends keyof T&gt;</code>, para ler propriedades com segurança.</li>
+<li>Valores padrão para parâmetros de tipo: <code>&lt;T = string&gt;</code>.</li>
+</ul></div>
+<hr>
+<h2>1. T extends: “qualquer um que tenha…”</h2>
+<pre class="file" data-file="src/restricao.ts">function maisLongo&lt;T extends { length: number }&gt;(a: T, b: T): T {
+  return a.length &gt;= b.length ? a : b;
+}
+
+console.log(maisLongo("banana", "kiwi"));
+console.log(maisLongo([1, 2], [1, 2, 3]));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/restricao.js
+banana
+[ 1, 2, 3 ]</pre>
+<p>Textos e arrays têm <code>length</code>, então servem. Um número não tem:</p>
+
+<pre class="file" data-file="src/restricao-erro.ts">function maisLongo&lt;T extends { length: number }&gt;(a: T, b: T): T {
+  return a.length &gt;= b.length ? a : b;
+}
+maisLongo(10, 20);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/restricao-erro.ts(4,11): error TS2345: Argument of type 'number' is not assignable to parameter of type '{ length: number; }'.</pre>
+<hr>
+<h2>2. Restringindo com uma interface</h2>
+
+<pre class="file" data-file="src/interface.ts">interface ComId {
+  id: number;
+}
+
+function buscarPorId&lt;T extends ComId&gt;(lista: T[], id: number): T | undefined {
+  return lista.find((item) =&gt; item.id === id);
+}
+
+const usuarios = [
+  { id: 1, nome: "Ana" },
+  { id: 2, nome: "Bia" },
+];
+const u = buscarPorId(usuarios, 2);
+console.log(u?.nome);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/interface.js
+Bia</pre>
+<p>Repare: a função só sabe que cada item tem <code>id</code>, mas o resultado mantém o tipo completo, com <code>nome</code>. Esse é o ganho sobre escrever <code>lista: ComId[]</code>, que perderia o <code>nome</code>. (O <code>?.</code> lê o campo só se <code>u</code> existir; aula <a href="null-undefined.html">null, undefined e ?.</a>.)</p>
+<hr>
+<h2>3. K extends keyof T</h2>
+<p>O <code>keyof T</code> é a união dos nomes das propriedades de <code>T</code> (detalhes na aula <a href="keyof-typeof.html">keyof e typeof</a>). Com ele dá para escrever uma função que lê qualquer propriedade, sem errar o nome:</p>
+
+<pre class="file" data-file="src/keyof.ts">function pegar&lt;T, K extends keyof T&gt;(obj: T, chave: K): T[K] {
+  return obj[chave];
+}
+
+const livro = { titulo: "Iracema", ano: 1865 };
+const t = pegar(livro, "titulo");
+const a = pegar(livro, "ano");
+console.log(t.toUpperCase(), a + 1);
+
+pegar(livro, "autor");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/keyof.ts(10,14): error TS2345: Argument of type '"autor"' is not assignable to parameter of type '"ano" | "titulo"'.</pre>
+<p>O retorno <code>T[K]</code> é o tipo daquela propriedade: <code>string</code> para <code>"titulo"</code>, <code>number</code> para <code>"ano"</code>. E uma chave que não existe é recusada, mostrando as que valem.</p>
+<hr>
+<h2>4. Valor padrão do parâmetro de tipo</h2>
+
+<pre class="file" data-file="src/padrao.ts">type Evento&lt;Dados = string&gt; = {
+  nome: string;
+  dados: Dados;
+};
+
+const e1: Evento = { nome: "login", dados: "ana" };
+const e2: Evento&lt;{ x: number; y: number }&gt; = { nome: "clique", dados: { x: 10, y: 20 } };
+console.log(e1.dados.toUpperCase(), e2.dados.x);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/padrao.js
+ANA 10</pre>
+<p>Sem dizer o tipo, <code>Evento</code> usa o padrão, <code>string</code>.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Objeto que não cumpre a restrição</strong>
+
+<pre class="file" data-file="src/sem-id.ts">interface ComId { id: number }
+function salvar&lt;T extends ComId&gt;(item: T) {
+  return item.id;
+}
+salvar({ nome: "Ana" });</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-id.ts(5,10): error TS2353: Object literal may only specify known properties, and 'nome' does not exist in type 'ComId'.</pre>
+<p>O objeto não tem <code>id</code>, então não cumpre a restrição. A mensagem aponta o campo que não cabe em <code>ComId</code> (o <code>nome</code>); com <code>{ id: 1, nome: "Ana" }</code> a chamada passa.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>&lt;T extends { length: number }&gt;</code></td><td>T precisa ter <code>length</code></td></tr>
+<tr><td><code>&lt;T extends ComId&gt;</code></td><td>T precisa ter o que a interface pede</td></tr>
+<tr><td><code>&lt;T, K extends keyof T&gt;</code></td><td>K é um dos nomes de propriedade de T</td></tr>
+<tr><td><code>T[K]</code></td><td>o tipo da propriedade K de T</td></tr>
+<tr><td><code>&lt;T = string&gt;</code></td><td>T vale <code>string</code> se ninguém disser outro</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Restringir</h3><p>Complete:</p><div class="ex-code">function f&lt;T <input data-answer="extends" aria-label="palavra"> { length: number }&gt;(x: T) { return x.length; }</div></div>
+<div class="exercise"><h3>2. Nomes das propriedades</h3><p>Complete para <code>K</code> ser um dos nomes de propriedade de <code>T</code>:</p><div class="ex-code">&lt;T, K extends <input data-answer="keyof" aria-label="operador"> T&gt;</div></div>
+<div class="exercise"><h3>3. Tipo da propriedade</h3><p>Complete o retorno que é o tipo da propriedade <code>K</code> de <code>T</code>:</p><div class="ex-code">function pegar&lt;T, K extends keyof T&gt;(obj: T, k: K): <input data-answer="T[K]" aria-label="tipo"></div></div>
+<div class="mc" data-answer="1"><p class="mc-q">4. Com <code>&lt;T extends { length: number }&gt;</code>, qual argumento é recusado?</p>
+<label><input type="radio" name="q4"> <code>10</code></label>
+<label><input type="radio" name="q4"> <code>"texto"</code></label>
+<label><input type="radio" name="q4"> <code>[1, 2]</code></label>
+<label><input type="radio" name="q4"> <code>{ length: 3 }</code></label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. Por que <code>buscarPorId&lt;T extends ComId&gt;</code> é melhor que receber <code>ComId[]</code>?</p>
+<label><input type="radio" name="q5"> Porque é mais curto</label>
+<label><input type="radio" name="q5"> Porque aceita números</label>
+<label><input type="radio" name="q5"> Porque o retorno mantém o tipo completo do item (com <code>nome</code>, etc.)</label>
+<label><input type="radio" name="q5"> Porque não precisa de <code>id</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:&lt;\s*T\s+extends\s*\{\s*preco\s*:\s*number;?\s*\}\s*&gt;;;semerro;;out:Total: 35">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function somarPrecos&lt;T extends { preco: number }&gt;(itens: T[]): number</code> e mostre <code>Total: 35</code> para <code>[{ nome: "pão", preco: 10 }, { nome: "café", preco: 25 }]</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function somarPrecos(itens: any[]): number {
+  return 0;
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function somarPrecos&lt;T extends { preco: number }&gt;(itens: T[]): number {
+  let total = 0;
+  for (const i of itens) total += i.preco;
+  return total;
+}
+console.log("Total: " + somarPrecos([{ nome: "pão", preco: 10 }, { nome: "café", preco: 25 }]));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Total: 35
+</pre>
+</div>
+<div class="trycmd" data-goal="src:K\s+extends\s+keyof\s+T;;semerro;;out:Bia;;out:28">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function ler&lt;T, K extends keyof T&gt;(obj: T, chave: K): T[K]</code> e mostre <code>ler(pessoa, "nome")</code> e <code>ler(pessoa, "idade")</code> para <code>{ nome: "Bia", idade: 28 }</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function ler(obj: any, chave: string) {
+  return obj[chave];
+}
+const pessoa = { nome: "Bia", idade: 28 };
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function ler&lt;T, K extends keyof T&gt;(obj: T, chave: K): T[K] {
+  return obj[chave];
+}
+const pessoa = { nome: "Bia", idade: 28 };
+console.log(ler(pessoa, "nome"));
+console.log(ler(pessoa, "idade"));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Bia
+28
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>T extends X</code> restringe o genérico: só tipos que tenham o que <code>X</code> pede.</li>
+<li><code>K extends keyof T</code> e o retorno <code>T[K]</code> leem propriedades com segurança.</li>
+<li><code>&lt;T = string&gt;</code> dá um padrão ao parâmetro de tipo.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

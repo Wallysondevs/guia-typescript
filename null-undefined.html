@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>null, undefined, ?. e ?? — lidando com valores ausentes | Guia TypeScript</title>
+<meta name="description" content="null e undefined com strictNullChecks em TypeScript: o erro 'possibly undefined', encadeamento opcional ?., coalescência nula ??, ??= e a diferença entre ?? e ||.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>null, undefined e <span class="hl">?.</span></h1>
+
+<p class="intro">O erro mais comum do JavaScript é tentar usar algo que não existe: <code>Cannot read properties of undefined</code>. Com o modo <code>strict</code>, o TypeScript trata <code>null</code> e <code>undefined</code> como tipos separados e obriga você a pensar neles. Nesta aula você aprende as ferramentas para isso: <code>?.</code>, <code>??</code> e o narrowing.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>O que o <code>strictNullChecks</code> (parte do <code>strict</code>) faz.</li>
+<li>O encadeamento opcional <code>?.</code>.</li>
+<li>A coalescência nula <code>??</code> e o <code>??=</code>.</li>
+<li>A diferença entre <code>??</code> e <code>||</code>.</li>
+</ul></div>
+<hr>
+<h2>1. O erro que o JavaScript deixa passar</h2>
+<p>Em JavaScript, este código roda e quebra:</p>
+<pre class="file" data-file="busca.js">const usuarios = [{ nome: "Ana" }, { nome: "Bia" }];
+const achado = usuarios.find((u) =&gt; u.nome === "Caio");
+console.log(achado.nome);</pre>
+<pre class="term" data-cwd="~/projeto">$ node busca.js
+file:///home/ana/projeto/busca.js:3
+console.log(achado.nome);
+                   ^
+
+TypeError: Cannot read properties of undefined (reading 'nome')
+    at file:///home/ana/projeto/busca.js:3:20
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.1</pre>
+<p>Em TypeScript, o mesmo código nem compila. O <code>find</code> devolve <code>{ nome: string } | undefined</code>, porque pode não achar:</p>
+<pre class="file" data-file="src/busca.ts">const usuarios = [{ nome: "Ana" }, { nome: "Bia" }];
+const achado = usuarios.find((u) =&gt; u.nome === "Caio");
+console.log(achado.nome);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/busca.ts(3,13): error TS18048: 'achado' is possibly 'undefined'.</pre>
+<hr>
+<h2>2. Encadeamento opcional: ?.</h2>
+<p>O <code>?.</code> lê a propriedade só se o valor existir. Se for <code>null</code> ou <code>undefined</code>, o resultado é <code>undefined</code>, sem erro:</p>
+
+<pre class="file" data-file="src/opcional.ts">type Usuario = { nome: string; endereco?: { cidade: string } };
+
+const ana: Usuario = { nome: "Ana", endereco: { cidade: "Recife" } };
+const bia: Usuario = { nome: "Bia" };
+
+console.log(ana.endereco?.cidade);
+console.log(bia.endereco?.cidade);
+
+function carregarLista(): string[] | undefined {
+  return undefined;
+}
+const lista = carregarLista();
+console.log(lista?.length);
+console.log(lista?.[0]);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/opcional.js
+Recife
+undefined
+undefined
+undefined</pre>
+<p>Funciona também com índices (<code>?.[0]</code>) e chamadas de função (<code>fn?.()</code>).</p>
+<hr>
+<h2>3. Valor padrão: ??</h2>
+<p>O <code>??</code> usa o valor da direita quando o da esquerda é <code>null</code> ou <code>undefined</code>. Juntando com o <code>?.</code>:</p>
+
+<pre class="file" data-file="src/coalescencia.ts">type Usuario = { nome: string; endereco?: { cidade: string }; pontos?: number };
+
+function cidadeDe(u: Usuario): string {
+  return u.endereco?.cidade ?? "cidade não informada";
+}
+
+console.log(cidadeDe({ nome: "Ana", endereco: { cidade: "Recife" } }));
+console.log(cidadeDe({ nome: "Bia" }));
+
+const config: { tema?: string } = {};
+config.tema ??= "claro";
+console.log(config.tema);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/coalescencia.js
+Recife
+cidade não informada
+claro</pre>
+<p>O <code>??=</code> atribui só se o valor atual for <code>null</code> ou <code>undefined</code>.</p>
+<hr>
+<h2>4. ?? não é ||</h2>
+<p>O <code>||</code> troca qualquer valor “falso”: também <code>0</code>, <code>""</code> e <code>false</code>. O <code>??</code> troca só <code>null</code> e <code>undefined</code>:</p>
+
+<pre class="file" data-file="src/ou.ts">const pontos = 0;
+const apelido = "";
+
+console.log("com ||:", pontos || 10, JSON.stringify(apelido || "sem apelido"));
+console.log("com ??:", pontos ?? 10, JSON.stringify(apelido ?? "sem apelido"));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/ou.js
+com ||: 10 "sem apelido"
+com ??: 0 ""</pre>
+<p>Com <code>||</code>, os zero pontos viraram 10. Quando <code>0</code> ou <code>""</code> são valores válidos, use <code>??</code>.</p>
+<hr>
+<h2>5. null de propósito</h2>
+<p>Use <code>null</code> quando “nada” é uma resposta válida, e escreva isso no tipo:</p>
+
+<pre class="file" data-file="src/null.ts">function buscarTelefone(nome: string): string | null {
+  if (nome === "Ana") return "81 99999-0000";
+  return null;
+}
+
+const tel = buscarTelefone("Bia");
+if (tel === null) {
+  console.log("sem telefone");
+} else {
+  console.log(tel.replace(" ", "-"));
+}
+console.log(buscarTelefone("Ana")?.length);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/null.js
+sem telefone
+13</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Atribuir null a um tipo que não aceita</strong>
+
+<pre class="file" data-file="src/null-erro.ts">let nome: string = null;
+let idade: number = undefined;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/null-erro.ts(1,5): error TS2322: Type 'null' is not assignable to type 'string'.
+src/null-erro.ts(2,5): error TS2322: Type 'undefined' is not assignable to type 'number'.</pre>
+<p>Com o <code>strict</code>, <code>null</code> e <code>undefined</code> não cabem em <code>string</code> nem em <code>number</code>. Se o valor pode faltar, diga no tipo: <code>string | null</code>.</p>
+</div>
+<div class="cenario"><strong>?. do lado esquerdo de uma atribuição</strong>
+
+<pre class="file" data-file="src/atribuir.ts">const u: { endereco?: { cidade: string } } = {};
+u.endereco?.cidade = "Natal";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/atribuir.ts(2,1): error TS2779: The left-hand side of an assignment expression may not be an optional property access.</pre>
+<p>O <code>?.</code> serve só para <strong>ler</strong>. Para escrever, confira antes com <code>if</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>a?.b</code></td><td><code>a.b</code>, ou <code>undefined</code> se <code>a</code> for null/undefined</td></tr>
+<tr><td><code>a?.[0]</code> / <code>f?.()</code></td><td>o mesmo para índice e chamada</td></tr>
+<tr><td><code>a ?? b</code></td><td><code>b</code> só se <code>a</code> for null/undefined</td></tr>
+<tr><td><code>a ??= b</code></td><td>atribui <code>b</code> se <code>a</code> for null/undefined</td></tr>
+<tr><td><code>a || b</code></td><td><code>b</code> se <code>a</code> for qualquer valor falso (0, "", false…)</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Ler com segurança</h3><p>Complete para ler a cidade só se o endereço existir:</p><div class="ex-code">u.endereco<input data-answer="?." aria-label="operador">cidade</div></div>
+<div class="exercise"><h3>2. Valor padrão</h3><p>Complete para usar <code>"anônimo"</code> quando <code>nome</code> for null/undefined:</p><div class="ex-code">const exibir = nome <input data-answer="??" aria-label="operador"> "anônimo";</div></div>
+<div class="exercise"><h3>3. O resultado</h3><p>Quanto vale <code>0 ?? 10</code>?</p><div class="ex-code"><input data-answer="0" aria-label="valor"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Qual é o tipo de retorno de <code>usuarios.find(…)</code>, se <code>usuarios</code> é <code>Usuario[]</code>?</p>
+<label><input type="radio" name="q4"> <code>Usuario</code></label>
+<label><input type="radio" name="q4"> <code>Usuario | undefined</code></label>
+<label><input type="radio" name="q4"> <code>Usuario[]</code></label>
+<label><input type="radio" name="q4"> <code>Usuario | null</code></label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Quanto vale <code>"" || "padrão"</code>?</p>
+<label><input type="radio" name="q5"> <code>""</code></label>
+<label><input type="radio" name="q5"> <code>undefined</code></label>
+<label><input type="radio" name="q5"> Erro de compilação</label>
+<label><input type="radio" name="q5"> <code>"padrão"</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:\?\.\s*nome;;src:\?\?;;semerro;;out:Bia;;out:não encontrado">
+<p class="try-task"><strong>Missão:</strong> corrija o código usando <code>?.</code> e <code>??</code> para mostrar o nome encontrado (<code>Bia</code>) e, para o id que não existe, <code>não encontrado</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const pessoas = [{ id: 1, nome: "Ana" }, { id: 2, nome: "Bia" }];
+function nomeDe(id: number): string {
+  return pessoas.find((p) =&gt; p.id === id).nome;
+}
+console.log(nomeDe(2));
+console.log(nomeDe(9));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const pessoas = [{ id: 1, nome: "Ana" }, { id: 2, nome: "Bia" }];
+function nomeDe(id: number): string {
+  return pessoas.find((p) =&gt; p.id === id)?.nome ?? "não encontrado";
+}
+console.log(nomeDe(2));
+console.log(nomeDe(9));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Bia
+não encontrado
+</pre>
+</div>
+<div class="trycmd" data-goal="src:volume\s*\?\?\s*50;;semerro;;out:volume: 0;;out:volume: 50">
+<p class="try-task"><strong>Missão:</strong> o volume <code>0</code> está virando <code>50</code> por causa do <code>||</code>. Troque por <code>??</code> para mostrar <code>volume: 0</code> e, quando não vier nada, <code>volume: 50</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function ajustar(volume?: number) {
+  console.log("volume: " + (volume || 50));
+}
+ajustar(0);
+ajustar();
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function ajustar(volume?: number) {
+  console.log("volume: " + (volume ?? 50));
+}
+ajustar(0);
+ajustar();
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+volume: 0
+volume: 50
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Com <code>strict</code>, <code>null</code> e <code>undefined</code> só entram onde o tipo diz.</li>
+<li><code>?.</code> lê com segurança; <code>??</code> dá um padrão para null/undefined; <code>??=</code> atribui se faltar.</li>
+<li><code>||</code> troca qualquer valor falso, inclusive <code>0</code> e <code>""</code>; prefira <code>??</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
