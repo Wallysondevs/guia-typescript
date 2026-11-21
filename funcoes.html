@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Funções Tipadas — parâmetros, retorno, arrow functions e tipos de função | Guia TypeScript</title>
+<meta name="description" content="Funções em TypeScript: tipos nos parâmetros e no retorno, arrow functions, tipos de função como (a: number) =&gt; number e callbacks tipados, com erros reais do compilador.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Funções <span class="hl">Tipadas</span></h1>
+
+<p class="intro">Funções são onde o TypeScript mais ajuda. Você diz o que a função <strong>recebe</strong> e o que ela <strong>devolve</strong>, e o compilador confere cada chamada: número certo de argumentos, tipos certos, retorno usado do jeito certo.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A tipar parâmetros e retorno: <code>function soma(a: number, b: number): number</code>.</li>
+<li>Os erros de chamada: argumento a mais, a menos ou do tipo errado.</li>
+<li>Arrow functions tipadas.</li>
+<li>O tipo de uma função, <code>(n: number) =&gt; number</code>, e callbacks.</li>
+</ul></div>
+<hr>
+<h2>1. Parâmetros e retorno</h2>
+<dl class="anatomy">
+<dt>function media</dt><dd>o nome da função</dd>
+<dt>(a: number, b: number)</dt><dd>os parâmetros, cada um com o seu tipo</dd>
+<dt>: number</dt><dd>o tipo do retorno (opcional: seria inferido)</dd>
+</dl>
+<pre class="file" data-file="src/funcoes.ts">function media(a: number, b: number): number {
+  return (a + b) / 2;
+}
+
+function saudacao(nome: string, hora: number): string {
+  if (hora &lt; 12) return `Bom dia, ${nome}!`;
+  return `Boa tarde, ${nome}!`;
+}
+
+console.log(media(7, 10));
+console.log(saudacao("Ana", 9));
+console.log(saudacao("Bia", 15));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/funcoes.js
+8.5
+Bom dia, Ana!
+Boa tarde, Bia!</pre>
+<p>Escrever o retorno (<code>: number</code>) é opcional, mas ajuda: se você esquecer um <code>return</code> ou devolver o tipo errado, o erro aparece <strong>dentro</strong> da função, e não lá longe, onde ela é usada.</p>
+
+<pre class="file" data-file="src/retorno.ts">function nota(valor: number): string {
+  if (valor &gt;= 7) {
+    return "aprovado";
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/retorno.ts(1,31): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.</pre>
+<p>O <code>TS2366</code> avisa: se <code>valor</code> for menor que 7, a função termina sem devolver nada, e o retorno prometido era <code>string</code>.</p>
+<hr>
+<h2>2. O compilador confere cada chamada</h2>
+
+<pre class="file" data-file="src/chamadas.ts">function media(a: number, b: number): number {
+  return (a + b) / 2;
+}
+
+media(7);
+media(7, 8, 9);
+media(7, "8");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/chamadas.ts(5,1): error TS2554: Expected 2 arguments, but got 1.
+src/chamadas.ts(6,13): error TS2554: Expected 2 arguments, but got 3.
+src/chamadas.ts(7,10): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
+<p>Três chamadas, três erros: <code>TS2554</code> para a quantidade de argumentos (faltando ou sobrando) e <code>TS2345</code> para o tipo errado. No JavaScript puro, todas rodariam caladas.</p>
+<hr>
+<h2>3. Arrow functions</h2>
+<p>As funções de seta (<code>=&gt;</code>) recebem tipos do mesmo jeito:</p>
+
+<pre class="file" data-file="src/arrow.ts">const dobro = (n: number): number =&gt; n * 2;
+const ehPar = (n: number) =&gt; n % 2 === 0;
+
+console.log(dobro(8));
+console.log(ehPar(8), ehPar(7));
+
+const numeros = [1, 2, 3, 4];
+console.log(numeros.map((n) =&gt; n * 10));
+console.log(numeros.filter(ehPar));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/arrow.js
+16
+true false
+[ 10, 20, 30, 40 ]
+[ 2, 4 ]</pre>
+<p>Repare no <code>map((n) =&gt; n * 10)</code>: o <code>n</code> não tem anotação, mas não deu erro. Como <code>numeros</code> é <code>number[]</code>, o TypeScript sabe que o <code>n</code> do callback é <code>number</code>. Isso se chama <strong>tipagem pelo contexto</strong>.</p>
+<hr>
+<h2>4. O tipo de uma função</h2>
+<p>Uma função também pode ser o <strong>tipo</strong> de uma variável ou de um parâmetro. Escreve-se como uma arrow: <code>(parâmetros) =&gt; retorno</code>.</p>
+
+<pre class="file" data-file="src/tipo-funcao.ts">type Operacao = (a: number, b: number) =&gt; number;
+
+const somar: Operacao = (a, b) =&gt; a + b;
+const multiplicar: Operacao = (a, b) =&gt; a * b;
+
+function calcular(x: number, y: number, op: Operacao): number {
+  return op(x, y);
+}
+
+console.log(calcular(6, 7, somar));
+console.log(calcular(6, 7, multiplicar));
+console.log(calcular(6, 7, (a, b) =&gt; a - b));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/tipo-funcao.js
+13
+42
+-1</pre>
+<p>O <code>type Operacao = …</code> dá um nome ao tipo (aula <a href="objetos-type.html">Objetos e type</a>). Uma função que não combina com <code>Operacao</code> é recusada:</p>
+
+<pre class="file" data-file="src/tipo-funcao-erro.ts">type Operacao = (a: number, b: number) =&gt; number;
+const juntar: Operacao = (a, b) =&gt; `${a}${b}`;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/tipo-funcao-erro.ts(2,36): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Usar o retorno de uma função void</strong>
+
+<pre class="file" data-file="src/void.ts">function mostrar(msg: string): void {
+  console.log(msg);
+}
+const r = mostrar("oi");
+console.log(r.length);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/void.ts(5,15): error TS2339: Property 'length' does not exist on type 'void'.</pre>
+<p>Quem devolve <code>void</code> não devolve nada útil; o compilador não deixa usar o “resultado”.</p>
+</div>
+<div class="cenario"><strong>Chamar algo que não é função</strong>
+
+<pre class="file" data-file="src/nao-funcao.ts">const total = 10;
+total();</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/nao-funcao.ts(2,1): error TS2349: This expression is not callable.
+  Type 'Number' has no call signatures.</pre>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Forma</th><th>Exemplo</th></tr>
+<tr><td>Declaração</td><td><code>function f(a: number): string { … }</code></td></tr>
+<tr><td>Arrow</td><td><code>const f = (a: number): string =&gt; …</code></td></tr>
+<tr><td>Tipo de função</td><td><code>type F = (a: number) =&gt; string;</code></td></tr>
+<tr><td>Parâmetro função</td><td><code>function aplicar(fn: (n: number) =&gt; number) { … }</code></td></tr>
+<tr><td>Sem retorno</td><td><code>function f(): void { … }</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Retorno</h3><p>Complete o tipo do retorno:</p><div class="ex-code">function metade(n: number): <input data-answer="number" aria-label="tipo"> { return n / 2; }</div></div>
+<div class="exercise"><h3>2. Parâmetro</h3><p>Complete o tipo do parâmetro:</p><div class="ex-code">const gritar = (texto: <input data-answer="string" aria-label="tipo">) =&gt; texto.toUpperCase();</div></div>
+<div class="exercise"><h3>3. Tipo de função</h3><p>Complete o tipo de uma função que recebe um número e devolve um texto:</p><div class="ex-code">type Formatar = (n: number) <input data-answer="=>" aria-label="seta"> string;</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Qual código de erro aparece quando falta ou sobra argumento?</p>
+<label><input type="radio" name="q4"> <code>TS2322</code></label>
+<label><input type="radio" name="q4"> <code>TS2345</code></label>
+<label><input type="radio" name="q4"> <code>TS2554</code></label>
+<label><input type="radio" name="q4"> <code>TS7006</code></label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. Por que o <code>n</code> em <code>numeros.map((n) =&gt; n * 10)</code> não precisa de anotação?</p>
+<label><input type="radio" name="q5"> Porque o TypeScript sabe, pelo contexto, que <code>numeros</code> é <code>number[]</code></label>
+<label><input type="radio" name="q5"> Porque arrow functions não têm tipos</label>
+<label><input type="radio" name="q5"> Porque ele vira <code>any</code></label>
+<label><input type="radio" name="q5"> Porque o <code>map</code> não confere nada</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:function\s+areaRetangulo\s*\(\s*\w+\s*:\s*number\s*,\s*\w+\s*:\s*number\s*\)\s*:\s*number;;semerro;;out:Área: 15">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function areaRetangulo(largura: number, altura: number): number</code> e mostre <code>Área: 15</code> para 3 por 5.</p>
+<pre class="script" data-file="src/missao.ts">
+function areaRetangulo(largura, altura) {
+  return largura * altura;
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function areaRetangulo(largura: number, altura: number): number {
+  return largura * altura;
+}
+console.log("Área: " + areaRetangulo(3, 5));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Área: 15
+</pre>
+</div>
+<div class="trycmd" data-goal="src:\(\s*\w+\s*:\s*number\s*\)\s*=&gt;\s*number;;semerro;;out:[ 2, 4, 6 ];;out:[ 11, 12, 13 ]">
+<p class="try-task"><strong>Missão:</strong> crie <code>function aplicar(lista: number[], fn: (n: number) =&gt; number): number[]</code> que devolve <code>lista.map(fn)</code>. Mostre o resultado com uma função que dobra e outra que soma 10, sobre <code>[1, 2, 3]</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function aplicar(lista: number[], fn: any) {
+  return lista;
+}
+console.log(aplicar([1, 2, 3], (n: number) =&gt; n * 2));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function aplicar(lista: number[], fn: (n: number) =&gt; number): number[] {
+  return lista.map(fn);
+}
+console.log(aplicar([1, 2, 3], (n) =&gt; n * 2));
+console.log(aplicar([1, 2, 3], (n) =&gt; n + 10));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+[ 2, 4, 6 ]
+[ 11, 12, 13 ]
+</pre>
+</div>
+<div class="trycmd" data-goal="src:dobrar\(\s*2\s*,\s*3\s*\);;erro:error TS2554: Expected 1 arguments, but got 2.">
+<p class="try-task"><strong>Missão:</strong> chame <code>dobrar(2, 3)</code> (um argumento a mais) e cole o erro do compilador.</p>
+<pre class="script" data-file="src/missao.ts">
+function dobrar(n: number): number {
+  return n * 2;
+}
+console.log(dobrar(2));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function dobrar(n: number): number {
+  return n * 2;
+}
+console.log(dobrar(2, 3));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+src/missao.ts(4,23): error TS2554: Expected 1 arguments, but got 2.
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Parâmetros sempre com tipo; retorno opcional, mas recomendado.</li>
+<li>O compilador confere quantidade e tipo dos argumentos (<code>TS2554</code>, <code>TS2345</code>).</li>
+<li>Arrow functions são tipadas do mesmo jeito; callbacks pegam o tipo pelo contexto.</li>
+<li>O tipo de uma função se escreve <code>(a: number) =&gt; number</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

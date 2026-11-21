@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Primeiro Programa — escrever, compilar com tsc e rodar com node | Guia TypeScript</title>
+<meta name="description" content="O primeiro programa em TypeScript: criar src/ola.ts, compilar com npx tsc, rodar com node, usar --watch e ler as mensagens de erro do compilador.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Primeiro <span class="hl">Programa</span> (tsc)</h1>
+
+<p class="intro">Com o projeto pronto, é hora do clássico “Olá, mundo”. Você vai fazer o ciclo completo do TypeScript: <strong>escrever</strong> em <code>src/</code>, <strong>compilar</strong> com <code>npx tsc</code> e <strong>rodar</strong> com <code>node</code>. E vai aprender a ler uma mensagem de erro de ponta a ponta.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>O ciclo escrever → <code>npx tsc</code> → <code>node dist/…</code>.</li>
+<li>A juntar os dois passos com <code>&amp;&amp;</code>.</li>
+<li>As partes de uma mensagem de erro: arquivo, linha, coluna, código e texto.</li>
+<li>A deixar o compilador vigiando os arquivos com <code>--watch</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Olá, mundo</h2>
+<p>Crie <code>src/ola.ts</code>:</p>
+<pre class="file" data-file="src/ola.ts">const nome: string = "Ana";
+const mensagem: string = `Olá, ${nome}! Bem-vinda ao TypeScript.`;
+
+console.log(mensagem);
+console.log("Hoje é dia de aprender tipos.");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+$ node dist/ola.js
+Olá, Ana! Bem-vinda ao TypeScript.
+Hoje é dia de aprender tipos.</pre>
+<p>O <code>`…${nome}…`</code> é uma <strong>template string</strong> do JavaScript: o valor de <code>nome</code> entra no meio do texto. Tudo o que vale no JavaScript vale no TypeScript.</p>
+<hr>
+<h2>2. Os dois passos numa linha só</h2>
+<dl class="anatomy">
+<dt>npx tsc</dt><dd>confere e compila o projeto</dd>
+<dt>&amp;&amp;</dt><dd>“e, se deu certo, então…”</dd>
+<dt>node dist/ola.js</dt><dd>roda o JavaScript gerado</dd>
+</dl>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/ola.js
+Olá, Ana! Bem-vinda ao TypeScript.
+Hoje é dia de aprender tipos.</pre>
+<p>Se o <code>tsc</code> achar erro, o <code>&amp;&amp;</code> impede o <code>node</code> de rodar. É exatamente o comando das missões.</p>
+<hr>
+<h2>3. Lendo uma mensagem de erro</h2>
+<p>Vamos errar de propósito, chamando um método que não existe e trocando o tipo de uma constante:</p>
+
+<pre class="file" data-file="src/ola.ts">const nome: string = "Ana";
+console.log(nome.toUppercase());
+
+const ano: number = "2026";
+console.log(ano);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/ola.js
+src/ola.ts(2,18): error TS2551: Property 'toUppercase' does not exist on type 'string'. Did you mean 'toUpperCase'?
+src/ola.ts(4,7): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+<div class="table-wrap"><table class="ref">
+<tr><th>Pedaço</th><th>O que quer dizer</th></tr>
+<tr><td><code>src/ola.ts</code></td><td>o arquivo com problema</td></tr>
+<tr><td><code>(2,18)</code></td><td>linha 2, coluna 18 (onde começa o problema)</td></tr>
+<tr><td><code>error TS2551</code></td><td>o código do erro: dá para pesquisar por ele</td></tr>
+<tr><td><code>Property 'toUppercase' does not exist…</code></td><td>a explicação: a propriedade não existe; e a sugestão <em>Did you mean 'toUpperCase'?</em></td></tr>
+</table></div>
+<p>Repare que o <code>node</code> não rodou: os dois erros apareceram e o <code>&amp;&amp;</code> parou tudo. Corrija o <code>C</code> maiúsculo e tire as aspas do <code>2026</code>:</p>
+
+<pre class="file" data-file="src/ola.ts">const nome: string = "Ana";
+console.log(nome.toUpperCase());
+
+const ano: number = 2026;
+console.log(ano);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/ola.js
+ANA
+2026</pre>
+<hr>
+<h2>4. Deixar o compilador vigiando: --watch</h2>
+<p>Em vez de rodar <code>npx tsc</code> a cada mudança, você pode deixá-lo <strong>vigiando</strong>: <code>npx tsc --watch</code> compila de novo toda vez que você salva um arquivo. Ele fica rodando até você apertar <kbd>Ctrl</kbd>+<kbd>C</kbd>. Use um segundo terminal para o <code>node</code>.</p>
+<p>Para só <strong>conferir</strong> os tipos, sem gerar nenhum arquivo, use <code>--noEmit</code>:</p>
+
+
+<pre class="term" data-cwd="~/projeto">$ npx tsc --noEmit
+$ ls
+node_modules
+package-lock.json
+package.json
+src
+tsconfig.json</pre>
+<p>Nenhuma resposta (tudo certo) e nenhuma pasta <code>dist</code> criada.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Rodar o node antes de compilar</strong>
+
+
+<pre class="term" data-cwd="~/projeto">$ node dist/novo.js
+node:internal/modules/cjs/loader:1568
+  throw err;
+  ^
+
+Error: Cannot find module '/home/ana/projeto/dist/novo.js'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1142:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+    at Module._load (node:internal/modules/cjs/loader:1341:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v24.22.1</pre>
+<p>O arquivo <code>dist/novo.js</code> ainda não existe: faltou o <code>npx tsc</code>. O <code>Cannot find module</code> (código <code>MODULE_NOT_FOUND</code>) é um erro do Node, não do TypeScript. As linhas com <code>at …</code> mostram por onde o Node passou até falhar; o que importa é a linha do <code>Error</code>.</p>
+</div>
+<div class="cenario"><strong>Esquecer de fechar aspas</strong>
+
+<pre class="file" data-file="src/aspas.ts">console.log("Olá);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/aspas.ts(1,19): error TS1002: Unterminated string literal.
+src/aspas.ts(2,1): error TS1005: ')' expected.</pre>
+<p>Erros de <strong>sintaxe</strong> (código mal escrito) têm códigos baixos, como <code>TS1002</code>. Os de <strong>tipo</strong> ficam na casa dos <code>TS2xxx</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Você digita</th><th>O que faz</th></tr>
+<tr><td><code>npx tsc</code></td><td>Confere e compila.</td></tr>
+<tr><td><code>npx tsc &amp;&amp; node dist/ola.js</code></td><td>Compila e, se não houver erro, roda.</td></tr>
+<tr><td><code>npx tsc --watch</code></td><td>Compila de novo a cada arquivo salvo.</td></tr>
+<tr><td><code>npx tsc --noEmit</code></td><td>Só confere os tipos, sem gerar arquivos.</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Só se der certo</h3><p>Complete para rodar o <code>node</code> só se o <code>tsc</code> não achar erro:</p><div class="ex-code">npx tsc <input data-answer="&&" aria-label="operador"> node dist/ola.js</div></div>
+<div class="exercise"><h3>2. Vigiar</h3><p>Complete para o compilador vigiar os arquivos:</p><div class="ex-code">npx tsc <input data-answer="--watch|-w" aria-label="opcao"></div></div>
+<div class="exercise"><h3>3. A linha</h3><p>Na mensagem <code>src/ola.ts(2,18): error TS2551</code>, em qual linha está o problema?</p><div class="ex-code"><input data-answer="2" aria-label="linha"></div></div>
+<div class="mc" data-answer="1"><p class="mc-q">4. O que o <code>tsc</code> mostra quando não encontra nenhum erro?</p>
+<label><input type="radio" name="q4"> Nada: silêncio quer dizer sucesso</label>
+<label><input type="radio" name="q4"> “OK”</label>
+<label><input type="radio" name="q4"> “0 errors”</label>
+<label><input type="radio" name="q4"> O JavaScript gerado</label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. Para que serve o <code>--noEmit</code>?</p>
+<label><input type="radio" name="q5"> Para compilar mais rápido apagando os tipos</label>
+<label><input type="radio" name="q5"> Para esconder os erros</label>
+<label><input type="radio" name="q5"> Para conferir os tipos sem gerar arquivos</label>
+<label><input type="radio" name="q5"> Para rodar o programa</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:const\s+nome\s*:\s*string\s*=;;src:`[^`]*\$\{\s*nome\s*\}[^`]*`;;semerro;;out:Olá, Bia! Seja bem-vinda.">
+<p class="try-task"><strong>Missão:</strong> guarde <code>"Bia"</code> numa <code>const nome: string</code> e mostre <code>Olá, Bia! Seja bem-vinda.</code> usando uma template string com <code>${nome}</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const nome = "Bia";
+console.log("Olá, " + nome + "! Seja bem-vinda.");
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const nome: string = "Bia";
+console.log(`Olá, ${nome}! Seja bem-vinda.`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Olá, Bia! Seja bem-vinda.
+</pre>
+</div>
+<div class="trycmd" data-goal="src:toUpperCase\(\);;semerro;;out:TYPESCRIPT">
+<p class="try-task"><strong>Missão:</strong> o código tem um erro de digitação no nome do método. Rode, leia a sugestão do compilador, corrija e mostre <code>TYPESCRIPT</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const linguagem: string = "typescript";
+console.log(linguagem.toUppercase());
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const linguagem: string = "typescript";
+console.log(linguagem.toUpperCase());
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+TYPESCRIPT
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Ciclo: escrever em <code>src/</code>, <code>npx tsc</code>, <code>node dist/…</code>; ou tudo junto com <code>&amp;&amp;</code>.</li>
+<li>Mensagem de erro: <code>arquivo(linha,coluna): error TScódigo: explicação</code>.</li>
+<li><code>--watch</code> recompila sozinho; <code>--noEmit</code> só confere.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

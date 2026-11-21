@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parâmetros Opcionais, Padrão e Rest — ?, = valor e ...resto | Guia TypeScript</title>
+<meta name="description" content="Parâmetros opcionais com ?, valores padrão, parâmetros rest (...numeros: number[]) e a ordem obrigatória entre eles em TypeScript, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Parâmetros Opcionais e <span class="hl">Padrão</span></h1>
+
+<p class="intro">Nem todo argumento precisa ser obrigatório. Um parâmetro pode ser <strong>opcional</strong> (<code>?</code>), ter um <strong>valor padrão</strong> (<code>= valor</code>) ou juntar “todos os que vierem” num array (<code>...resto</code>). O TypeScript entende os três e confere o tipo de cada um.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Parâmetros opcionais com <code>?</code> e por que eles podem ser <code>undefined</code>.</li>
+<li>Valores padrão, que dispensam a anotação.</li>
+<li>Parâmetros rest: <code>...numeros: number[]</code>.</li>
+<li>A regra da ordem: obrigatórios antes dos opcionais.</li>
+</ul></div>
+<hr>
+<h2>1. Opcional com ?</h2>
+<pre class="file" data-file="src/opcional.ts">function apresentar(nome: string, cidade?: string): string {
+  if (cidade) {
+    return `${nome}, de ${cidade}`;
+  }
+  return nome;
+}
+
+console.log(apresentar("Ana", "Recife"));
+console.log(apresentar("Bia"));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/opcional.js
+Ana, de Recife
+Bia</pre>
+<p>Dentro da função, <code>cidade</code> é <code>string | undefined</code>: pode ter vindo ou não. Por isso o <code>if</code>. Sem ele:</p>
+
+<pre class="file" data-file="src/opcional-erro.ts">function apresentar(nome: string, cidade?: string): string {
+  return nome + " de " + cidade.toUpperCase();
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/opcional-erro.ts(2,26): error TS18048: 'cidade' is possibly 'undefined'.</pre>
+<hr>
+<h2>2. Valor padrão</h2>
+<p>Com <code>= valor</code>, se o argumento não vier, entra o padrão. O tipo é inferido pelo valor:</p>
+
+<pre class="file" data-file="src/padrao.ts">function preco(valor: number, desconto = 0.1): string {
+  const final = valor * (1 - desconto);
+  return final.toFixed(2);
+}
+
+console.log(preco(100));
+console.log(preco(100, 0.25));
+console.log(preco(100, 0));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/padrao.js
+90.00
+75.00
+100.00</pre>
+<p>O <code>desconto</code> ficou <code>number</code> sem anotação. E, diferente do opcional, dentro da função ele <strong>nunca</strong> é <code>undefined</code>: o padrão garante um valor.</p>
+<hr>
+<h2>3. Rest: quantos vierem</h2>
+
+<pre class="file" data-file="src/rest.ts">function somarTodos(...numeros: number[]): number {
+  let total = 0;
+  for (const n of numeros) total += n;
+  return total;
+}
+
+console.log(somarTodos());
+console.log(somarTodos(5));
+console.log(somarTodos(1, 2, 3, 4));
+
+const lista = [10, 20, 30];
+console.log(somarTodos(...lista));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/rest.js
+0
+5
+10
+60</pre>
+<p>O <code>...numeros</code> junta todos os argumentos num array, por isso o tipo é <code>number[]</code>. E o <code>...lista</code> na chamada faz o contrário: espalha o array em argumentos.</p>
+<hr>
+<h2>4. A ordem importa</h2>
+<p>Parâmetros opcionais vêm <strong>depois</strong> dos obrigatórios, e o rest vem por último:</p>
+
+<pre class="file" data-file="src/ordem.ts">function errada(cidade?: string, nome: string) {
+  return nome;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/ordem.ts(1,34): error TS1016: A required parameter cannot follow an optional parameter.</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Padrão do tipo errado</strong>
+
+<pre class="file" data-file="src/padrao-erro.ts">function repetir(texto: string, vezes: number = "2") {
+  return texto.repeat(vezes);
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/padrao-erro.ts(1,33): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+</div>
+<div class="cenario"><strong>Rest com item de outro tipo</strong>
+
+<pre class="file" data-file="src/rest-erro.ts">function somarTodos(...numeros: number[]): number {
+  return numeros.reduce((a, b) =&gt; a + b, 0);
+}
+somarTodos(1, 2, "3");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/rest-erro.ts(4,18): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Forma</th><th>Dentro da função, o tipo é</th></tr>
+<tr><td><code>cidade?: string</code></td><td><code>string | undefined</code></td></tr>
+<tr><td><code>desconto = 0.1</code></td><td><code>number</code> (nunca <code>undefined</code>)</td></tr>
+<tr><td><code>...numeros: number[]</code></td><td><code>number[]</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Opcional</h3><p>Complete para o <code>sobrenome</code> ser opcional:</p><div class="ex-code">function nomeCompleto(nome: string, sobrenome<input data-answer="?" aria-label="simbolo">: string) { … }</div></div>
+<div class="exercise"><h3>2. Rest</h3><p>Complete o parâmetro rest:</p><div class="ex-code">function maior(<input data-answer="..." aria-label="simbolo">valores: number[]) { … }</div></div>
+<div class="exercise"><h3>3. Padrão</h3><p>Com <code>function f(x = 5)</code>, qual tipo o TypeScript infere para <code>x</code>?</p><div class="ex-code"><input data-answer="number" aria-label="tipo"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Dentro da função, qual é o tipo de <code>cidade</code> em <code>cidade?: string</code>?</p>
+<label><input type="radio" name="q4"> <code>string</code></label>
+<label><input type="radio" name="q4"> <code>string | undefined</code></label>
+<label><input type="radio" name="q4"> <code>any</code></label>
+<label><input type="radio" name="q4"> <code>never</code></label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Qual ordem de parâmetros é válida?</p>
+<label><input type="radio" name="q5"> <code>(a?: string, b: string)</code></label>
+<label><input type="radio" name="q5"> <code>(...r: number[], a: string)</code></label>
+<label><input type="radio" name="q5"> <code>(a?: string, ...r: number[], b: number)</code></label>
+<label><input type="radio" name="q5"> <code>(a: string, b?: string, ...r: number[])</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:\w+\s*\?\s*:\s*string;;semerro;;out:Olá, Ana!;;out:Olá, visitante!">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function ola(nome?: string)</code> que mostra <code>Olá, Ana!</code> quando recebe <code>"Ana"</code> e <code>Olá, visitante!</code> quando não recebe nada. Chame das duas formas. Dica: <code>nome ?? "visitante"</code> usa o texto da direita quando <code>nome</code> é <code>undefined</code> (mais na aula <a href="null-undefined.html">null, undefined e ?.</a>).</p>
+<pre class="script" data-file="src/missao.ts">
+function ola(nome: string) {
+  console.log(`Olá, ${nome}!`);
+}
+ola("Ana");
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function ola(nome?: string) {
+  console.log(`Olá, ${nome ?? "visitante"}!`);
+}
+ola("Ana");
+ola();
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Olá, Ana!
+Olá, visitante!
+</pre>
+</div>
+<div class="trycmd" data-goal="src:\.\.\.\w+\s*:\s*number\[\];;semerro;;out:Maior: 42">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function maior(...valores: number[]): number</code> que devolve o maior valor (dica: <code>Math.max(...valores)</code>) e mostre <code>Maior: 42</code> para <code>maior(3, 42, 7, 15)</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function maior(valores: number[]): number {
+  return 0;
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function maior(...valores: number[]): number {
+  return Math.max(...valores);
+}
+console.log("Maior: " + maior(3, 42, 7, 15));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Maior: 42
+</pre>
+</div>
+<div class="trycmd" data-goal="src:vezes\s*=\s*3;;semerro;;out:ei ei ei">
+<p class="try-task"><strong>Missão:</strong> dê ao parâmetro <code>vezes</code> o valor padrão <code>3</code> e mostre <code>eco("ei")</code>, que deve imprimir <code>ei ei ei</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function eco(texto: string, vezes: number) {
+  return Array(vezes).fill(texto).join(" ");
+}
+console.log(eco("ei"));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function eco(texto: string, vezes = 3) {
+  return Array(vezes).fill(texto).join(" ");
+}
+console.log(eco("ei"));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+ei ei ei
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>?</code> torna o parâmetro opcional; dentro, ele pode ser <code>undefined</code>.</li>
+<li><code>= valor</code> dá um padrão e o tipo é inferido.</li>
+<li><code>...resto: T[]</code> junta os argumentos num array.</li>
+<li>Ordem: obrigatórios, depois opcionais/padrão, e o rest por último.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

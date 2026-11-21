@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inferência de Tipos — quando o TypeScript descobre o tipo sozinho | Guia TypeScript</title>
+<meta name="description" content="Inferência de tipos em TypeScript: let e const, tipos literais, inferência no retorno de funções e quando vale a pena escrever a anotação.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Inferência de <span class="hl">Tipos</span></h1>
+
+<p class="intro">Você não precisa escrever <code>: tipo</code> em tudo. Quando você dá um valor logo na criação, o TypeScript <strong>deduz</strong> o tipo sozinho. Isso se chama <strong>inferência</strong>. O código fica limpo e continua conferido.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Como o TypeScript deduz o tipo pelo valor inicial.</li>
+<li>A diferença entre <code>let</code> (tipo largo, <code>string</code>) e <code>const</code> (tipo literal, <code>"Ana"</code>).</li>
+<li>Que o retorno das funções também é inferido.</li>
+<li>Quando a anotação ainda é necessária.</li>
+</ul></div>
+<hr>
+<h2>A ideia: o tipo vem do primeiro valor</h2>
+<p>Se você escreve <code>let idade = 30</code>, o TypeScript pensa: “começou com um número, então é <code>number</code>”. A partir daí, a variável é <code>number</code> para sempre, como se você tivesse escrito a anotação.</p>
+<pre class="file" data-file="src/inferencia.ts">let idade = 30;
+let nome = "Ana";
+let ativo = true;
+
+idade = 31;
+idade = "trinta e um";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/inferencia.ts(6,1): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+<p>Ninguém escreveu <code>: number</code>, mas o erro <code>TS2322</code> é o mesmo da aula anterior. A inferência dá a mesma proteção com menos digitação.</p>
+<hr>
+<h2>1. Vendo o tipo inferido</h2>
+<p>No editor (como o VS Code), basta parar o mouse sobre a variável para ver o tipo. No terminal, um truque é provocar um erro: o compilador sempre diz o tipo que deduziu. Atribuir a variável a outra do tipo errado revela o tipo:</p>
+
+<pre class="file" data-file="src/revela.ts">let preco = 9.9;
+let produto = "café";
+let lista = [1, 2, 3];
+
+const teste1: boolean = preco;
+const teste2: boolean = produto;
+const teste3: boolean = lista;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/revela.ts(5,7): error TS2322: Type 'number' is not assignable to type 'boolean'.
+src/revela.ts(6,7): error TS2322: Type 'string' is not assignable to type 'boolean'.
+src/revela.ts(7,7): error TS2322: Type 'number[]' is not assignable to type 'boolean'.</pre>
+<p>O <code>lista</code> foi inferido como <code>number[]</code>, um array de números (aula <a href="arrays-tuplas.html">Arrays e Tuplas</a>).</p>
+<hr>
+<h2>2. let ou const muda o tipo</h2>
+<p>Uma <code>const</code> nunca muda de valor. Por isso o TypeScript infere um tipo <strong>literal</strong>: não “qualquer texto”, mas exatamente aquele texto.</p>
+
+<pre class="file" data-file="src/literal.ts">let cidade = "Brasília";
+const capital = "Brasília";
+
+const a: "Brasília" = capital;
+const b: "Brasília" = cidade;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/literal.ts(5,7): error TS2322: Type 'string' is not assignable to type '"Brasília"'.</pre>
+<p>Aqui o tipo <code>"Brasília"</code> (com aspas, na anotação) quer dizer “só este texto exato”. A linha 4 passou: o <code>capital</code>, criado com <code>const</code>, tem o tipo literal <code>"Brasília"</code>. A linha 5 falhou: o <code>cidade</code>, criado com <code>let</code>, é uma <code>string</code> qualquer, porque poderia mudar depois. Os tipos literais aparecem de novo na aula <a href="union-literal.html">Union e Literal Types</a>.</p>
+<hr>
+<h2>3. O retorno das funções também é inferido</h2>
+
+<pre class="file" data-file="src/retorno.ts">function dobro(n: number) {
+  return n * 2;
+}
+
+const resultado = dobro(21);
+console.log(resultado);
+
+const texto: string = dobro(5);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/retorno.ts(8,7): error TS2322: Type 'number' is not assignable to type 'string'.</pre>
+<p>O parâmetro <code>n</code> precisou de anotação, mas o retorno não: <code>n * 2</code> é um número, então <code>dobro</code> devolve <code>number</code>.</p>
+<hr>
+<h2>4. Quando a anotação é necessária</h2>
+<p>Sem valor inicial, não há de onde deduzir. Com o <code>strict</code>, um parâmetro sem tipo vira erro:</p>
+
+<pre class="file" data-file="src/sem-tipo.ts">function saudar(nome) {
+  return "Olá, " + nome;
+}
+console.log(saudar("Ana"));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-tipo.ts(1,17): error TS7006: Parameter 'nome' implicitly has an 'any' type.</pre>
+<p>O <code>TS7006</code> diz que o parâmetro ficou com o tipo <code>any</code> (“qualquer coisa”) sem você pedir. Regra prática: <strong>anote os parâmetros das funções</strong> e deixe a inferência cuidar das variáveis com valor inicial.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Mudar uma const</strong>
+
+<pre class="file" data-file="src/const.ts">const pi = 3.14;
+pi = 3.14159;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/const.ts(2,1): error TS2588: Cannot assign to 'pi' because it is a constant.</pre>
+<p>O <code>TS2588</code> diz que não dá para atribuir a <code>pi</code> porque é uma constante. Use <code>let</code> se o valor precisa mudar.</p>
+</div>
+<div class="cenario"><strong>Variável sem valor e sem tipo</strong>
+
+<pre class="file" data-file="src/vazia.ts">let total;
+total = 10;
+total = "dez";
+console.log(total);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/vazia.js
+dez</pre>
+<p>Aqui não houve erro: um <code>let</code> sem valor e sem tipo vai mudando de tipo conforme as atribuições, o que quase nunca é o que você quer. Dê um valor inicial ou escreva o tipo: <code>let total: number;</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Código</th><th>Tipo inferido</th></tr>
+<tr><td><code>let n = 30</code></td><td><code>number</code></td></tr>
+<tr><td><code>let s = "Ana"</code></td><td><code>string</code></td></tr>
+<tr><td><code>const s = "Ana"</code></td><td><code>"Ana"</code> (literal)</td></tr>
+<tr><td><code>let l = [1, 2, 3]</code></td><td><code>number[]</code></td></tr>
+<tr><td><code>function f(n: number) { return n * 2 }</code></td><td>retorno <code>number</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Inferido</h3><p>Qual tipo o TypeScript infere para <code>let ativo = true</code>?</p><div class="ex-code"><input data-answer="boolean" aria-label="tipo"></div></div>
+<div class="exercise"><h3>2. Array</h3><p>Qual tipo o TypeScript inferiu para <code>[1, 2, 3]</code>?</p><div class="ex-code"><input data-answer="number[]|Array<number>" aria-label="tipo"></div></div>
+<div class="exercise"><h3>3. O erro do any implícito</h3><p>Qual código de erro aparece para um parâmetro sem tipo?</p><div class="ex-code"><input data-answer="TS7006" aria-label="codigo"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Qual o tipo de <code>capital</code> em <code>const capital = "Brasília"</code>?</p>
+<label><input type="radio" name="q4"> <code>string</code></label>
+<label><input type="radio" name="q4"> <code>"Brasília"</code></label>
+<label><input type="radio" name="q4"> <code>any</code></label>
+<label><input type="radio" name="q4"> <code>String</code></label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Onde a anotação de tipo é mais importante?</p>
+<label><input type="radio" name="q5"> Em toda variável com valor inicial</label>
+<label><input type="radio" name="q5"> No retorno de toda função</label>
+<label><input type="radio" name="q5"> Em lugar nenhum</label>
+<label><input type="radio" name="q5"> Nos parâmetros das funções</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:let\s+pontos\s*=\s*\d+;;src:pontos\s*=\s*&quot;[^&quot;]*&quot;;;erro:error TS2322: Type 'string' is not assignable to type 'number'.">
+<p class="try-task"><strong>Missão:</strong> sem escrever nenhuma anotação, crie <code>let pontos = 100;</code> e depois tente <code>pontos = "cem";</code>. Cole o erro que prova que a inferência funcionou.</p>
+<pre class="script" data-file="src/missao.ts">
+let pontos = 100;
+console.log(pontos);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+let pontos = 100;
+pontos = "cem";
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+src/missao.ts(2,1): error TS2322: Type 'string' is not assignable to type 'number'.
+</pre>
+</div>
+<div class="trycmd" data-goal="src:function\s+triplo\s*\(\s*n\s*:\s*number\s*\)\s*\{;;semerro;;out:21">
+<p class="try-task"><strong>Missão:</strong> a função <code>triplo</code> está sem tipo no parâmetro e o <code>tsc</code> reclama. Anote só o parâmetro (<code>n: number</code>), deixe o retorno ser inferido e mostre <code>triplo(7)</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function triplo(n) {
+  return n * 3;
+}
+console.log(triplo(7));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function triplo(n: number) {
+  return n * 3;
+}
+console.log(triplo(7));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+21
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Com valor inicial, o TypeScript deduz o tipo: isso é inferência.</li>
+<li><code>let</code> infere o tipo largo (<code>string</code>); <code>const</code> infere o literal (<code>"Ana"</code>).</li>
+<li>O retorno das funções é inferido; os parâmetros precisam de anotação.</li>
+<li>Provocar um erro é um jeito de ver o tipo que o compilador deduziu.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

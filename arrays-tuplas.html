@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arrays e Tuplas — number[], Array&lt;T&gt;, readonly e [string, number] | Guia TypeScript</title>
+<meta name="description" content="Arrays tipados (number[] e Array&lt;number&gt;), arrays somente leitura, o noUncheckedIndexedAccess e tuplas com posições de tipos diferentes, com erros reais do tsc.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Arrays e <span class="hl">Tuplas</span></h1>
+
+<p class="intro">Um <strong>array</strong> é uma lista. Em TypeScript, a lista tem tipo: “lista de números”, “lista de textos”. Já a <strong>tupla</strong> é uma lista de tamanho fixo em que cada posição tem o seu tipo, como um par <code>[nome, idade]</code>.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>As duas formas de escrever um array: <code>number[]</code> e <code>Array&lt;number&gt;</code>.</li>
+<li>Por que <code>lista[0]</code> pode ser <code>undefined</code> no nosso projeto.</li>
+<li>Arrays que não podem mudar: <code>readonly string[]</code>.</li>
+<li>Tuplas: <code>[string, number]</code>, com nomes e desestruturação.</li>
+</ul></div>
+<hr>
+<h2>1. Array de um tipo só</h2>
+<pre class="file" data-file="src/arrays.ts">const notas: number[] = [7.5, 8, 9.5];
+const nomes: Array&lt;string&gt; = ["Ana", "Bia", "Caio"];
+
+notas.push(10);
+console.log(notas);
+console.log(nomes.join(", "));
+console.log(notas.length);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/arrays.js
+[ 7.5, 8, 9.5, 10 ]
+Ana, Bia, Caio
+4</pre>
+<p><code>number[]</code> e <code>Array&lt;number&gt;</code> são a mesma coisa. A primeira forma é a mais usada; a segunda aparece de novo na aula <a href="generics.html">Generics</a>.</p>
+<p>O compilador não deixa entrar um item do tipo errado:</p>
+
+<pre class="file" data-file="src/push.ts">const notas: number[] = [7.5, 8];
+notas.push("dez");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/push.ts(2,12): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
+<hr>
+<h2>2. Lendo um item: talvez ele não exista</h2>
+<p>O nosso <code>tsconfig.json</code> (criado pelo <code>--init</code>) liga a opção <code>noUncheckedIndexedAccess</code>. Com ela, ler <code>lista[0]</code> devolve “número <strong>ou</strong> <code>undefined</code>”, porque a lista pode estar vazia:</p>
+
+<pre class="file" data-file="src/indice.ts">const notas: number[] = [7.5, 8, 9.5];
+const primeira = notas[0];
+console.log(primeira.toFixed(1));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/indice.ts(3,13): error TS18048: 'primeira' is possibly 'undefined'.</pre>
+<p>O <code>TS18048</code> diz: “<code>primeira</code> pode ser <code>undefined</code>”. Confira antes de usar, com um <code>if</code> (o assunto da aula <a href="narrowing.html">Narrowing</a>):</p>
+
+<pre class="file" data-file="src/indice.ts">const notas: number[] = [7.5, 8, 9.5];
+const primeira = notas[0];
+if (primeira !== undefined) {
+  console.log(primeira.toFixed(1));
+}
+for (const n of notas) {
+  console.log(n * 2);
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/indice.js
+7.5
+15
+16
+19</pre>
+<p>No <code>for...of</code> não é preciso conferir: cada <code>n</code> é um item que existe de verdade.</p>
+<hr>
+<h2>3. Arrays somente leitura</h2>
+
+<pre class="file" data-file="src/readonly.ts">const dias: readonly string[] = ["seg", "ter", "qua"];
+console.log(dias[1]);
+dias.push("qui");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/readonly.ts(3,6): error TS2339: Property 'push' does not exist on type 'readonly string[]'.</pre>
+<p>Com <code>readonly</code>, os métodos que mudam a lista (<code>push</code>, <code>pop</code>, <code>sort</code>…) nem existem no tipo. Bom para listas que ninguém deveria mexer.</p>
+<hr>
+<h2>4. Tuplas: cada posição com o seu tipo</h2>
+
+<pre class="file" data-file="src/tuplas.ts">const pessoa: [string, number] = ["Ana", 30];
+const [nome, idade] = pessoa;
+console.log(nome.toUpperCase(), idade + 1);
+
+const ponto: [x: number, y: number] = [10, 20];
+console.log(`x=${ponto[0]} y=${ponto[1]}`);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/tuplas.js
+ANA 31
+x=10 y=20</pre>
+<p>Na tupla, o compilador sabe que a posição <code>0</code> é <code>string</code> e a <code>1</code> é <code>number</code>, e sabe que elas existem (sem o <code>undefined</code> do item 2). Os nomes em <code>[x: number, y: number]</code> são só documentação.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Tupla na ordem trocada ou com tamanho errado</strong>
+
+<pre class="file" data-file="src/tupla-errada.ts">const a: [string, number] = [30, "Ana"];
+const b: [string, number] = ["Ana", 30, true];
+const c: [string, number] = ["Ana", 30];
+console.log(c[2]);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/tupla-errada.ts(1,30): error TS2322: Type 'number' is not assignable to type 'string'.
+src/tupla-errada.ts(1,34): error TS2322: Type 'string' is not assignable to type 'number'.
+src/tupla-errada.ts(2,7): error TS2322: Type '[string, number, boolean]' is not assignable to type '[string, number]'.
+  Source has 3 element(s) but target allows only 2.
+src/tupla-errada.ts(4,15): error TS2493: Tuple type '[string, number]' of length '2' has no element at index '2'.</pre>
+<p>Ordem trocada dá <code>TS2322</code> em cada posição; um item a mais também; e ler uma posição que a tupla não tem dá <code>TS2493</code>.</p>
+</div>
+<div class="cenario"><strong>Array vazio sem tipo</strong>
+
+<pre class="file" data-file="src/vazio.ts">const compras = [];
+compras.push("pão");
+compras.push(3);
+const primeiro: boolean = compras;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/vazio.ts(4,7): error TS2322: Type '(string | number)[]' is not assignable to type 'boolean'.</pre>
+<p>Sem tipo, o array vazio aceita tudo e vira <code>(string | number)[]</code>. Prefira dizer o tipo: <code>const compras: string[] = [];</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>number[]</code></td><td>array de números</td></tr>
+<tr><td><code>Array&lt;string&gt;</code></td><td>array de textos (forma genérica)</td></tr>
+<tr><td><code>readonly string[]</code></td><td>array que não pode mudar</td></tr>
+<tr><td><code>[string, number]</code></td><td>tupla: 2 posições, texto e número</td></tr>
+<tr><td><code>[x: number, y: number]</code></td><td>tupla com nomes nas posições</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Lista de textos</h3><p>Complete o tipo:</p><div class="ex-code">const frutas: <input data-answer="string[]|Array<string>" aria-label="tipo"> = ["maçã", "uva"];</div></div>
+<div class="exercise"><h3>2. Somente leitura</h3><p>Complete para impedir mudanças:</p><div class="ex-code">const meses: <input data-answer="readonly" aria-label="palavra"> string[] = ["jan", "fev"];</div></div>
+<div class="exercise"><h3>3. Tupla</h3><p>Complete o tipo da tupla <code>["Rio", 1565]</code>:</p><div class="ex-code">const ano: [<input data-answer="string" aria-label="tipo1">, <input data-answer="number" aria-label="tipo2">] = ["Rio", 1565];</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. No nosso projeto, qual é o tipo de <code>notas[0]</code> se <code>notas</code> é <code>number[]</code>?</p>
+<label><input type="radio" name="q4"> <code>number</code></label>
+<label><input type="radio" name="q4"> <code>any</code></label>
+<label><input type="radio" name="q4"> <code>number | undefined</code></label>
+<label><input type="radio" name="q4"> <code>number[]</code></label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. O que diferencia uma tupla de um array comum?</p>
+<label><input type="radio" name="q5"> Tamanho fixo e um tipo para cada posição</label>
+<label><input type="radio" name="q5"> A tupla só guarda números</label>
+<label><input type="radio" name="q5"> A tupla não existe no JavaScript gerado</label>
+<label><input type="radio" name="q5"> Nada, é só outro nome</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:const\s+precos\s*:\s*number\[\]\s*=;;src:for\s*\(\s*const\s+\w+\s+of\s+precos\s*\);;semerro;;out:Total: 42.5">
+<p class="try-task"><strong>Missão:</strong> crie <code>const precos: number[] = [12.5, 20, 10];</code>, some os itens com um <code>for...of</code> e mostre <code>Total: 42.5</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const precos = [12.5, 20, 10];
+let total = 0;
+console.log("Total: " + total);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const precos: number[] = [12.5, 20, 10];
+let total = 0;
+for (const p of precos) {
+  total += p;
+}
+console.log("Total: " + total);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Total: 42.5
+</pre>
+</div>
+<div class="trycmd" data-goal="src:\[\s*string\s*,\s*number\s*\];;src:const\s*\[\s*\w+\s*,\s*\w+\s*\]\s*=;;semerro;;out:Caio tem 25 anos">
+<p class="try-task"><strong>Missão:</strong> guarde <code>["Caio", 25]</code> numa tupla do tipo <code>[string, number]</code>, desestruture em duas constantes e mostre <code>Caio tem 25 anos</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const pessoa = ["Caio", 25];
+console.log(pessoa);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const pessoa: [string, number] = ["Caio", 25];
+const [nome, idade] = pessoa;
+console.log(`${nome} tem ${idade} anos`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Caio tem 25 anos
+</pre>
+</div>
+<div class="trycmd" data-goal="src:readonly\s+string\[\];;src:\.push\(;;erro:error TS2339: Property 'push' does not exist on type 'readonly string[]'.">
+<p class="try-task"><strong>Missão:</strong> crie <code>const cores: readonly string[] = ["azul", "verde"];</code> e tente <code>cores.push("rosa")</code>. Cole o erro.</p>
+<pre class="script" data-file="src/missao.ts">
+const cores: string[] = ["azul", "verde"];
+cores.push("rosa");
+console.log(cores);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const cores: readonly string[] = ["azul", "verde"];
+cores.push("rosa");
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+src/missao.ts(2,7): error TS2339: Property 'push' does not exist on type 'readonly string[]'.
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>number[]</code> = <code>Array&lt;number&gt;</code>: lista de um tipo só.</li>
+<li>Com <code>noUncheckedIndexedAccess</code>, <code>lista[i]</code> pode ser <code>undefined</code>: confira antes ou use <code>for...of</code>.</li>
+<li><code>readonly</code> tira os métodos que mudam a lista.</li>
+<li>Tupla: tamanho fixo, um tipo por posição, ótima com desestruturação.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
