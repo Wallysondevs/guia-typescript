@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O que é TypeScript — JavaScript com tipos | Guia TypeScript</title>
+<meta name="description" content="O que é TypeScript, por que ele existe, como o compilador tsc transforma .ts em .js e o primeiro contato com um erro de tipo real.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>O que é <span class="hl">TypeScript</span></h1>
+
+<p class="intro">O <strong>TypeScript</strong> é o JavaScript com <strong>tipos</strong>. Você escreve quase o mesmo código de sempre, mas pode dizer “isto aqui é um número”, “esta função recebe um texto”. Um programa chamado <strong>compilador</strong> (o <code>tsc</code>) confere tudo e depois gera o JavaScript que o navegador ou o Node vão rodar.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>O problema que o TypeScript resolve, com um erro real do JavaScript.</li>
+<li>O caminho do código: arquivo <code>.ts</code> → <code>tsc</code> → arquivo <code>.js</code> → <code>node</code>.</li>
+<li>Que os tipos <strong>somem</strong> no JavaScript gerado.</li>
+<li>Como ler a primeira mensagem do compilador.</li>
+</ul></div>
+<hr>
+<h2>A ideia: um revisor antes da gráfica</h2>
+<p>Imagine que você escreveu um livro. Antes de mandar para a gráfica, um <strong>revisor</strong> lê tudo e marca os erros. O JavaScript vai direto para a gráfica: os erros aparecem só quando o leitor (o usuário) abre o livro. O TypeScript coloca um revisor no meio. Ele não muda a história, só aponta o que não faz sentido.</p>
+<hr>
+<h2>1. Um erro que o JavaScript deixa passar</h2>
+<p>Veja esta função em JavaScript puro, num arquivo <code>soma.js</code>. Ela deveria somar dois números:</p>
+<pre class="file" data-file="soma.js">function soma(a, b) {
+  return a + b;
+}
+
+console.log(soma(2, 3));
+console.log(soma("2", 3));</pre>
+<pre class="term" data-cwd="~/projeto">$ node soma.js
+5
+23</pre>
+<p>O segundo resultado é <code>23</code>, e não <code>5</code>. Com um texto no meio, o <code>+</code> do JavaScript <strong>junta</strong> em vez de somar. Nenhum aviso: o programa rodou feliz, com o resultado errado.</p>
+<hr>
+<h2>2. O mesmo código em TypeScript</h2>
+<p>Agora a mesma função num arquivo <code>.ts</code>, dizendo que <code>a</code> e <code>b</code> são do tipo <code>number</code>:</p>
+<pre class="file" data-file="src/soma.ts">function soma(a: number, b: number) {
+  return a + b;
+}
+
+console.log(soma(2, 3));
+console.log(soma("2", 3));</pre>
+<p>Antes de rodar, pedimos ao compilador para conferir e gerar o JavaScript:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/soma.ts(6,18): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
+<p>O revisor achou o problema na <strong>linha 6</strong>, <strong>coluna 18</strong>: “um argumento do tipo <code>string</code> não pode ser passado para um parâmetro do tipo <code>number</code>”. O erro apareceu <strong>antes</strong> de qualquer usuário ver um <code>23</code> na tela.</p>
+<div class="tip"><strong>Mensagens em inglês</strong><p>O <code>tsc</code> escreve em inglês, e este guia mostra as mensagens exatamente como elas aparecem. Logo depois de cada uma, vem a explicação em português. Com o tempo você reconhece as mais comuns só pelo número, como o <code>TS2345</code>.</p></div>
+<hr>
+<h2>3. Os tipos somem no JavaScript</h2>
+<p>Corrigindo a chamada, o <code>tsc</code> gera o arquivo <code>dist/soma.js</code>:</p>
+
+<pre class="file" data-file="src/soma.ts">function soma(a: number, b: number) {
+  return a + b;
+}
+
+console.log(soma(2, 3));
+console.log(soma(10, 20));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+$ node dist/soma.js
+5
+30</pre>
+<pre class="file" data-file="dist/soma.js">function soma(a, b) {
+    return a + b;
+}
+console.log(soma(2, 3));
+console.log(soma(10, 20));
+export {};
+//# sourceMappingURL=soma.js.map</pre>
+<p>Repare: o <code>: number</code> sumiu. O JavaScript gerado é praticamente o que você escreveria à mão. As duas linhas do fim vêm das configurações do projeto: o <code>export {};</code> marca o arquivo como um <strong>módulo</strong> (aula <a href="modulos.html">Módulos</a>) e o comentário <code>sourceMappingURL</code> aponta para um “mapa” que liga o <code>.js</code> de volta ao <code>.ts</code>, útil para depurar. Os tipos servem <strong>só para conferir</strong>; o Node nunca os vê.</p>
+<hr>
+<h2>O caminho do código</h2>
+<ol class="passo">
+<li>Você escreve <code>src/soma.ts</code>, com tipos.</li>
+<li>O <code>npx tsc</code> confere os tipos e mostra os erros, se houver.</li>
+<li>O <code>tsc</code> escreve <code>dist/soma.js</code>, sem os tipos.</li>
+<li>O <code>node dist/soma.js</code> roda o JavaScript.</li>
+</ol>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Rodar o .ts direto no node, com tipos que o Node não sabe apagar</strong>
+<p>O Node 24 consegue rodar alguns arquivos <code>.ts</code> direto, apagando os tipos simples na hora. Mas ele <strong>não confere</strong> nada, e alguns recursos do TypeScript ele nem aceita. Veja um <code>enum</code> (aula <a href="enums.html">Enums</a>):</p>
+
+<pre class="file" data-file="src/cores.ts">enum Cor { Vermelho, Verde }
+console.log(Cor.Verde);</pre>
+<pre class="term" data-cwd="~/projeto">$ node src/cores.ts
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///home/ana/projeto/src/cores.ts:1
+enum Cor { Vermelho, Verde }
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+console.log(Cor.Verde);
+
+SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode
+    at parseTypeScript (node:internal/modules/typescript:68:40)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.&lt;anonymous&gt; (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:438:20)
+    at afterLoad (node:internal/modules/esm/loader:506:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:511:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12) {
+  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.22.1</pre>
+<p>Por isso, neste guia, o caminho é sempre o mesmo: <code>npx tsc</code> para conferir e gerar, <code>node dist/…</code> para rodar. Na aula <a href="ts-com-node.html">TypeScript com Node</a> você vê de perto quando o atalho funciona.</p>
+</div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. O compilador</h3><p>Qual é o nome do programa que confere os tipos e gera o JavaScript? (3 letras)</p><div class="ex-code"><input data-answer="tsc" aria-label="compilador"></div></div>
+<div class="exercise"><h3>2. A extensão</h3><p>Arquivos TypeScript terminam com qual extensão?</p><div class="ex-code">soma<input data-answer=".ts" aria-label="extensao"></div></div>
+<div class="exercise"><h3>3. O resultado do JavaScript</h3><p>No exemplo em JavaScript puro, o que <code>soma("2", 3)</code> mostrou?</p><div class="ex-code"><input data-answer="23" aria-label="resultado"></div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Quando o TypeScript avisa sobre o erro de tipo?</p>
+<label><input type="radio" name="q4"> Só quando o usuário abre o programa</label>
+<label><input type="radio" name="q4"> Nunca: ele só deixa o código mais bonito</label>
+<label><input type="radio" name="q4"> Ao compilar, antes de o programa rodar</label>
+<label><input type="radio" name="q4"> Só no navegador</label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. O que acontece com as anotações de tipo no <code>.js</code> gerado?</p>
+<label><input type="radio" name="q5"> Elas somem</label>
+<label><input type="radio" name="q5"> Viram comentários</label>
+<label><input type="radio" name="q5"> Viram testes automáticos</label>
+<label><input type="radio" name="q5"> Ficam iguais</label></div>
+<div class="mc" data-answer="2"><p class="mc-q">6. As mensagens do <code>tsc</code> aparecem neste guia…</p>
+<label><input type="radio" name="q6"> traduzidas para o português</label>
+<label><input type="radio" name="q6"> exatamente como o compilador escreve, em inglês, com a explicação em seguida</label>
+<label><input type="radio" name="q6"> resumidas</label>
+<label><input type="radio" name="q6"> só pelo número</label></div>
+<p>As missões com código começam na próxima aula, <a href="instalar.html">Instalando o TypeScript</a>, quando o seu projeto estiver pronto.</p>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>TypeScript é JavaScript com tipos; o compilador <code>tsc</code> confere e gera o <code>.js</code>.</li>
+<li>Erros de tipo aparecem ao compilar, antes de o programa rodar.</li>
+<li>Os tipos somem no JavaScript gerado.</li>
+<li>Caminho do guia: <code>src/arquivo.ts</code> → <code>npx tsc</code> → <code>node dist/arquivo.js</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

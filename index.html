@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial TypeScript — aprenda TypeScript do zero, em português | Guia TypeScript</title>
+<meta name="description" content="Curso de TypeScript em português, do zero ao avançado: tipos, funções, interfaces, classes, generics, utility types, mapped e conditional types, .d.ts, decorators e TypeScript com Node. Saídas e erros do compilador conferidos no tsc de verdade.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="hero">
+<h1>Tutorial TypeScript</h1>
+<p>Aprenda <strong>TypeScript</strong>, o JavaScript com tipos, do zero, como numa escola: cada assunto é explicado pedaço por pedaço e você vê a resposta de verdade do compilador <code>tsc</code> e do Node. Nenhuma saída foi inventada e nenhuma mensagem de erro foi traduzida.</p>
+<a class="btn btn-lg" href="introducao.html">Comece aqui &#10095;</a>
+</div>
+
+<div class="pager"></div>
+
+<p>A primeira aula é <a href="introducao.html">O que é TypeScript</a>. Depois vêm a instalação, o primeiro programa e, uma a uma, as aulas de cada assunto.</p>
+
+<hr>
+
+<h2>O que é este guia</h2>
+<p>O <strong>TypeScript</strong> é o JavaScript com uma camada a mais: os <strong>tipos</strong>. Você diz que uma variável guarda um número, que uma função recebe um texto, que um objeto tem tais campos, e o compilador confere tudo <strong>antes</strong> de o programa rodar. Muitos erros que só apareceriam na tela do usuário aparecem no seu terminal.</p>
+<p>O guia é para quem já viu o básico de JavaScript (variáveis, <code>if</code>, funções, arrays e objetos). Se ainda não viu, comece pelo Guia JavaScript e volte depois. Cada aula ensina <strong>um assunto só</strong>. Os exemplos acompanham a Ana, que estuda num computador fictício chamado <code>notebook</code>, com o projeto na pasta <code>/home/ana/projeto</code>.</p>
+<p>O texto está em português do Brasil. As palavras do TypeScript ficam como a linguagem as escreve (<code>interface</code>, <code>type</code>, <code>extends</code>), e a gente explica o termo na primeira vez. As mensagens do compilador <strong>não são traduzidas</strong>: aparecem exatamente como o <code>tsc</code> mostrou, em inglês, com a explicação em português logo depois.</p>
+
+<div class="note"><strong>Versões usadas</strong>
+<p>Todas as saídas foram colhidas com <strong>TypeScript 7.0.2</strong> e <strong>Node.js 24.22.1</strong>, num projeto criado com <code>npx tsc --init</code>. Com outras versões, o texto de algumas mensagens pode mudar um pouco, mas o código do erro (como <code>TS2322</code>) costuma ser o mesmo.</p></div>
+
+<hr>
+
+<h2>Como estudar</h2>
+<p>Programação se aprende programando. Para cada aula, siga estes quatro passos:</p>
+<ol class="passo">
+  <li><strong>Leia com calma.</strong> Leia a ideia, o código e a saída. Não pule a parte “Quando dá errado”: ler erros é metade do trabalho com TypeScript.</li>
+  <li><strong>Digite os exemplos.</strong> Crie os arquivos em <code>src/</code>, rode <code>npx tsc</code> e depois o <code>node</code>. Compare com a saída da aula.</li>
+  <li><strong>Faça as missões e os exercícios.</strong> Nas caixas <strong>Missão</strong>, você escreve o código, roda no seu terminal e cola a saída para conferir. Tente de verdade antes de abrir a solução.</li>
+  <li><strong>Quebre de propósito.</strong> Troque um tipo, apague uma linha, veja o que o compilador diz. É assim que as mensagens ficam familiares.</li>
+</ol>
+
+<div class="tip">
+<strong>A regra de ouro</strong>
+<p>Ler não basta: digite cada exemplo. Copiar e colar ensina pouco; digitar faz você reparar em cada dois-pontos, cada sinal de <code>&lt;</code> e <code>&gt;</code> e cada <code>?</code>. <a href="introducao.html">Comece aqui</a>, pela aula <a href="introducao.html">O que é TypeScript</a>.</p>
+</div>
+
+<hr>
+
+<h2>Escolha sua trilha</h2>
+<p>O guia tem três níveis, pensados para serem feitos em ordem: cada aula usa o que as anteriores ensinaram. O mapa abaixo é montado a partir da lista oficial de aulas.</p>
+<div id="mapa-niveis" class="trilhas"></div>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

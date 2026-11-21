@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instalando o TypeScript — npm i -D typescript e npx tsc --init | Guia TypeScript</title>
+<meta name="description" content="Como criar a pasta do projeto, instalar o TypeScript com npm i -D typescript, conferir a versão com npx tsc -v e criar o tsconfig.json com npx tsc --init.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Instalando o <span class="hl">TypeScript</span></h1>
+
+<p class="intro">Nesta aula você monta o <strong>projeto</strong> que vai usar no guia inteiro: uma pasta com o TypeScript instalado e um arquivo de configuração, o <code>tsconfig.json</code>. São poucos comandos, e todos aparecem aqui com a resposta real do terminal.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A conferir se o Node e o npm estão instalados.</li>
+<li>A criar o projeto com <code>npm init -y</code> e instalar o TypeScript com <code>npm i -D typescript</code>.</li>
+<li>A rodar o compilador com <code>npx tsc</code> e ver a versão.</li>
+<li>A criar o <code>tsconfig.json</code> com <code>npx tsc --init</code> e ajustar as pastas <code>src</code> e <code>dist</code>.</li>
+</ul></div>
+<hr>
+<h2>0. Antes de tudo: o Node</h2>
+<p>O TypeScript é instalado pelo <strong>npm</strong>, que vem junto com o <strong>Node.js</strong>. Se você ainda não tem o Node, instale a versão LTS pelo site oficial (nodejs.org) ou pelo gerenciador de pacotes do seu sistema. Depois confira:</p>
+
+<pre class="term" data-cwd="~">$ node -v
+v24.22.1
+$ npm -v
+11.21.1</pre>
+<p>Qualquer Node a partir da versão 20 serve para o guia. As saídas daqui foram colhidas com o Node 24.</p>
+<hr>
+<h2>1. Criar a pasta do projeto</h2>
+<p>Abra o terminal na sua pasta pessoal e crie a pasta <code>projeto</code>. O <code>npm init -y</code> cria o <code>package.json</code>, a “ficha” do projeto, aceitando as respostas padrão:</p>
+<pre class="term" data-cwd="~">$ mkdir projeto
+$ cd projeto
+$ npm init -y
+Wrote to /home/ana/projeto/package.json:
+
+{
+  "name": "projeto",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}</pre>
+<p>Como o guia usa a sintaxe moderna de módulos (<code>import</code> e <code>export</code>), mude o campo <code>"type"</code> para <code>"module"</code>. O próprio npm faz isso, sem você abrir o arquivo:</p>
+<pre class="term" data-cwd="~/projeto">$ npm pkg set type=module
+$ npm pkg get type
+"module"</pre>
+<hr>
+<h2>2. Instalar o TypeScript</h2>
+<dl class="anatomy">
+<dt>npm</dt><dd>o gerenciador de pacotes do Node</dd>
+<dt>i</dt><dd>abreviação de <code>install</code></dd>
+<dt>-D</dt><dd>instala como dependência de <strong>desenvolvimento</strong> (só quem programa precisa do compilador)</dd>
+<dt>typescript</dt><dd>o nome do pacote</dd>
+</dl>
+<pre class="term" data-cwd="~/projeto">$ npm i -D typescript
+
+added 2 packages, and audited 3 packages in 534ms
+
+found 0 vulnerabilities</pre>
+<p>O pacote fica na pasta <code>node_modules</code>, só deste projeto. Para rodar o compilador que está ali, use o <code>npx</code>, que procura o programa dentro do projeto:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc -v
+Version 7.0.2</pre>
+<div class="tip"><strong>Por que não instalar “global”?</strong><p>Daria para instalar com <code>npm i -g typescript</code> e rodar só <code>tsc</code>. Mas cada projeto pode precisar de uma versão diferente. Instalando no projeto, a versão fica anotada no <code>package.json</code> e quem baixar o seu código usa a mesma.</p></div>
+<hr>
+<h2>3. Criar o tsconfig.json</h2>
+<p>O <code>tsconfig.json</code> diz ao compilador <strong>como</strong> trabalhar: quão rigoroso ser, para qual versão de JavaScript gerar, onde ficam os arquivos. O <code>--init</code> cria um com valores recomendados:</p>
+<pre class="term" data-cwd="~/projeto">$ npx tsc --init
+
+Created a new tsconfig.json
+
+You can learn more at https://aka.ms/tsconfig</pre>
+<p>Este é o arquivo criado (as linhas com <code>//</code> são comentários):</p>
+<pre class="file" data-file="tsconfig.json">{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // File Layout
+    // "rootDir": "./src",
+    // "outDir": "./dist",
+
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "module": "nodenext",
+    "target": "esnext",
+    "types": [],
+    // For nodejs:
+    // "lib": ["esnext"],
+    // "types": ["node"],
+    // and npm install -D @types/node
+
+    // Other Outputs
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Style Options
+    // "noImplicitReturns": true,
+    // "noImplicitOverride": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+    // "noFallthroughCasesInSwitch": true,
+    // "noPropertyAccessFromIndexSignature": true,
+
+    // Recommended Options
+    "strict": true,
+    "jsx": "react-jsx",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+  }
+}</pre>
+<p>Por enquanto, só uma coisa importa: o <code>"strict": true</code>, que liga o modo rigoroso. Ele é o que faz o TypeScript valer a pena, e fica ligado no guia inteiro. Os outros itens você conhece na aula <a href="tsconfig.html">O tsconfig.json</a>.</p>
+<hr>
+<h2>4. Separar src e dist</h2>
+<p>Vamos guardar o código TypeScript em <code>src/</code> e deixar o JavaScript gerado em <code>dist/</code>. No <code>tsconfig.json</code>, apague as duas barras do começo destas linhas, perto do topo:</p>
+<pre class="file" data-file="tsconfig.json (trecho, antes)">    // "rootDir": "./src",
+    // "outDir": "./dist",</pre>
+<pre class="file" data-file="tsconfig.json (trecho, depois)">    "rootDir": "./src",
+    "outDir": "./dist",</pre>
+
+<p>Agora crie a pasta <code>src</code> e um primeiro arquivo para testar:</p>
+<pre class="term" data-cwd="~/projeto">$ mkdir src
+$ echo 'console.log("Projeto pronto!");' &gt; src/teste.ts
+$ npx tsc
+$ node dist/teste.js
+Projeto pronto!
+$ ls dist
+teste.d.ts
+teste.d.ts.map
+teste.js
+teste.js.map</pre>
+<p>Funcionou: o <code>tsc</code> leu <code>src/teste.ts</code> e escreveu em <code>dist/</code> o <code>teste.js</code> e mais três arquivos de apoio (o mapa <code>.map</code> e as declarações <code>.d.ts</code>, que você conhece na aula <a href="declaration-files.html">Arquivos de Declaração</a>). Daqui em diante, toda aula usa este projeto.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Esquecer o npx</strong>
+<p>Sem o <code>npx</code>, o terminal procura um <code>tsc</code> instalado no sistema inteiro, e não acha:</p>
+<pre class="term" data-cwd="~/projeto">$ tsc -v
+bash: tsc: command not found</pre>
+<p>Use <code>npx tsc</code> dentro da pasta do projeto.</p>
+</div>
+<div class="cenario"><strong>Rodar o tsc fora da pasta do projeto</strong>
+<pre class="term" data-cwd="~/projeto">$ cd ..
+$ npx tsc --noEmit
+
+                                                                               
+                This is not the tsc command you are looking for                
+                                                                               
+
+To get access to the TypeScript compiler, tsc, from the command line either:
+
+- Use npm install typescript to first add TypeScript to your project before using npx
+- Use yarn to avoid accidentally running code from un-installed packages</pre>
+<p>Na pasta pessoal não existe <code>node_modules</code> com o TypeScript. O <code>npx</code> então procurou no npm um pacote chamado <code>tsc</code>, baixou e rodou. Só que esse pacote <strong>não</strong> é o TypeScript: ele existe só para mostrar o aviso “This is not the tsc command you are looking for”. Volte com <code>cd projeto</code> e rode de novo lá dentro.</p>
+</div>
+<div class="cenario"><strong>Passar o nome do arquivo para o tsc</strong>
+
+
+<pre class="term" data-cwd="~/projeto">$ npx tsc src/ola.ts
+error TS5112: tsconfig.json is present but will not be loaded if files are specified on commandline. Use '--ignoreConfig' to skip this error.</pre>
+<p>O <code>TS5112</code> explica: com um <code>tsconfig.json</code> na pasta, passar arquivos na linha de comando faria o compilador ignorar a configuração, então ele se recusa. O jeito certo é rodar só <code>npx tsc</code>: ele compila tudo o que está em <code>src/</code>, com as configurações do projeto.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Você digita</th><th>O que faz</th></tr>
+<tr><td><code>npm init -y</code></td><td>Cria o <code>package.json</code>.</td></tr>
+<tr><td><code>npm pkg set type=module</code></td><td>Liga os módulos modernos (<code>import</code>/<code>export</code>).</td></tr>
+<tr><td><code>npm i -D typescript</code></td><td>Instala o TypeScript no projeto.</td></tr>
+<tr><td><code>npx tsc -v</code></td><td>Mostra a versão do compilador.</td></tr>
+<tr><td><code>npx tsc --init</code></td><td>Cria o <code>tsconfig.json</code>.</td></tr>
+<tr><td><code>npx tsc</code></td><td>Confere e compila o projeto inteiro.</td></tr>
+<tr><td><code>node dist/arquivo.js</code></td><td>Roda o JavaScript gerado.</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Instalar</h3><p>Complete o comando que instala o TypeScript como dependência de desenvolvimento:</p><div class="ex-code">npm i <input data-answer="-D|--save-dev" aria-label="opcao"> typescript</div></div>
+<div class="exercise"><h3>2. Rodar o compilador do projeto</h3><p>Complete para ver a versão:</p><div class="ex-code"><input data-answer="npx" aria-label="programa"> tsc -v</div></div>
+<div class="exercise"><h3>3. Configuração</h3><p>Qual opção do <code>tsc</code> cria o <code>tsconfig.json</code>?</p><div class="ex-code">npx tsc <input data-answer="--init" aria-label="opcao"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Para que serve o <code>-D</code> no <code>npm i -D typescript</code>?</p>
+<label><input type="radio" name="q4"> Para apagar o pacote</label>
+<label><input type="radio" name="q4"> Para marcar o pacote como dependência de desenvolvimento</label>
+<label><input type="radio" name="q4"> Para instalar no sistema inteiro</label>
+<label><input type="radio" name="q4"> Para baixar a versão de teste</label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Com <code>"rootDir": "./src"</code> e <code>"outDir": "./dist"</code>, onde fica o JavaScript gerado de <code>src/teste.ts</code>?</p>
+<label><input type="radio" name="q5"> <code>src/teste.js</code></label>
+<label><input type="radio" name="q5"> <code>teste.js</code>, na raiz</label>
+<label><input type="radio" name="q5"> <code>node_modules/teste.js</code></label>
+<label><input type="radio" name="q5"> <code>dist/teste.js</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:console\.log\(\s*[&quot;'`]Meu projeto TypeScript funciona![&quot;'`]\s*\);;semerro;;out:Meu projeto TypeScript funciona!">
+<p class="try-task"><strong>Missão:</strong> no seu projeto, crie <code>src/missao.ts</code> com um <code>console.log("Meu projeto TypeScript funciona!")</code>, compile e rode. Esta é a rotina de todas as missões do guia.</p>
+<pre class="script" data-file="src/missao.ts">
+// escreva aqui o console.log
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+console.log("Meu projeto TypeScript funciona!");
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Meu projeto TypeScript funciona!
+</pre>
+</div>
+<div class="trycmd" data-goal="src:console\.log\(\s*2\s*\*\s*21\s*\);;semerro;;out:42">
+<p class="try-task"><strong>Missão:</strong> mostre o resultado da conta <code>2 * 21</code> com <code>console.log(2 * 21)</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+console.log("2 * 21");
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+console.log(2 * 21);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+42
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>O projeto do guia: <code>npm init -y</code>, <code>npm pkg set type=module</code>, <code>npm i -D typescript</code>, <code>npx tsc --init</code>.</li>
+<li>No <code>tsconfig.json</code>, <code>rootDir</code> é <code>./src</code> e <code>outDir</code> é <code>./dist</code>.</li>
+<li>Rotina: escrever em <code>src/</code>, rodar <code>npx tsc</code>, rodar <code>node dist/…</code>.</li>
+<li>Use sempre <code>npx tsc</code> dentro da pasta do projeto, sem nome de arquivo.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# nada de rascunho, coleta bruta ou dependências no repositório
+node_modules/
+tools/node_modules/
+_saidas/
+_coleta/
+*.bak
+*.log
+.DS_Store
