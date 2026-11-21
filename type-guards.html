@@ -84,7 +84,7 @@ function ehUsuario(x: unknown): x is Usuario {
   );
 }
 
-const entradas = ['{"nome": "Ana", "idade": 30}', '{"nome": "Bia"}', '"só um texto"'];
+const entradas = ['{"nome": "Ana", "idade": 30}', '{"nome": "Duda"}', '"só um texto"'];
 
 for (const texto of entradas) {
   const dados: unknown = JSON.parse(texto);
@@ -96,9 +96,9 @@ for (const texto of entradas) {
 }</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/validar.js
 ok: Ana tem 30 anos
-inválido: {"nome": "Bia"}
+inválido: {"nome": "Duda"}
 inválido: "só um texto"</pre>
-<p>Repare que dentro do guard o compilador acompanha cada passo: depois de <code>"nome" in x</code>, ele deixa ler <code>x.nome</code>. O <code>{"nome": "Bia"}</code>, sem idade, foi recusado <strong>rodando</strong>, em vez de virar um erro mais adiante.</p>
+<p>Repare que dentro do guard o compilador acompanha cada passo: depois de <code>"nome" in x</code>, ele deixa ler <code>x.nome</code>. O <code>{"nome": "Duda"}</code>, sem idade, foi recusado <strong>rodando</strong>, em vez de virar um erro mais adiante.</p>
 <div class="warning"><strong>Responsabilidade sua</strong><p>O compilador confia no que o guard devolve. Se a função disser <code>true</code> para algo errado, o tipo vai mentir. Escreva o guard com cuidado e confira todos os campos que importam.</p></div>
 <hr>
 <h2>4. Filtrando arrays</h2>
@@ -112,11 +112,11 @@ console.log(soNumeros, soma);
 function existe&lt;T&gt;(x: T | null | undefined): x is T {
   return x !== null &amp;&amp; x !== undefined;
 }
-const nomes = ["Ana", null, "Bia", undefined].filter(existe);
+const nomes = ["Ana", null, "Duda", undefined].filter(existe);
 console.log(nomes.map((n) =&gt; n.toUpperCase()));</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/filtrar.js
 [ 3, 7, 10 ] 20
-[ 'ANA', 'BIA' ]</pre>
+[ 'ANA', 'DUDA' ]</pre>
 <p>Com o guard, o <code>filter</code> devolve um array do tipo certo (<code>number[]</code>, <code>string[]</code>), e não mais a mistura.</p>
 <hr>
 <h2>5. Funções de asserção: asserts</h2>
@@ -202,20 +202,20 @@ console.log(area({ raio: 1 }));
 área do círculo: 3.14
 </pre>
 </div>
-<div class="trycmd" data-goal="src:\(\s*\w+\s*\)\s*:\s*\w+\s+is\s+string\s*=&gt;;;semerro;;out:[ 'ana', 'bia' ]">
+<div class="trycmd" data-goal="src:\(\s*\w+\s*\)\s*:\s*\w+\s+is\s+string\s*=&gt;;;semerro;;out:[ 'ana', 'duda' ]">
 <p class="try-task"><strong>Missão:</strong> filtre só os textos da lista usando um guard direto no <code>filter</code>: <code>(x): x is string =&gt; typeof x === "string"</code>. Mostre o array resultante.</p>
 <pre class="script" data-file="src/missao.ts">
-const itens = ["ana", 1, "bia", true];
+const itens = ["ana", 1, "duda", true];
 const textos = itens.filter((x) =&gt; true);
 console.log(textos);
 </pre>
 <pre class="solucao" data-file="src/missao.ts">
-const itens = ["ana", 1, "bia", true];
+const itens = ["ana", 1, "duda", true];
 const textos = itens.filter((x): x is string =&gt; typeof x === "string");
 console.log(textos);
 </pre>
 <pre class="saida-ok" data-file="src/missao.ts" hidden>
-[ 'ana', 'bia' ]
+[ 'ana', 'duda' ]
 </pre>
 </div>
 <hr>

@@ -48,12 +48,12 @@ function saudar(c: Cliente): string {
 }
 
 const cliente: Cliente = { nome: "Ana" };
-saudar({ nome: "Bia", idade: "20" });
+saudar({ nome: "Duda", idade: "20" });
 console.log(cliente.email);
 console.log(cliente.nome.toUppercase());</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc
 src/tipos.ts(7,7): error TS2741: Property 'idade' is missing in type '{ nome: string; }' but required in type 'Cliente'.
-src/tipos.ts(8,23): error TS2322: Type 'string' is not assignable to type 'number'.
+src/tipos.ts(8,24): error TS2322: Type 'string' is not assignable to type 'number'.
 src/tipos.ts(9,21): error TS2339: Property 'email' does not exist on type 'Cliente'.
 src/tipos.ts(10,26): error TS2551: Property 'toUppercase' does not exist on type 'string'. Did you mean 'toUpperCase'?</pre>
 <div class="table-wrap"><table class="ref">
@@ -96,12 +96,12 @@ src/funcoes.ts(10,16): error TS7006: Parameter 'lista' implicitly has an 'any' t
 <h2>4. Erros de sintaxe</h2>
 <p>Erros com código <code>TS1xxx</code> costumam ser de <strong>sintaxe</strong>: o texto nem chega a ser um programa válido.</p>
 
-<pre class="file" data-file="src/sintaxe.ts">const nomes = ["Ana", "Bia";
+<pre class="file" data-file="src/sintaxe.ts">const nomes = ["Ana", "Duda";
 function ola( {
   console.log("oi");
 }</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc
-src/sintaxe.ts(1,28): error TS1005: ',' expected.
+src/sintaxe.ts(1,29): error TS1005: ',' expected.
 src/sintaxe.ts(3,10): error TS1005: ',' expected.
 src/sintaxe.ts(3,14): error TS1005: ',' expected.
 src/sintaxe.ts(4,1): error TS1128: Declaration or statement expected.</pre>

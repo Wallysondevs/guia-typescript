@@ -152,18 +152,18 @@ src/aspas.ts(2,1): error TS1005: ')' expected.</pre>
 <label><input type="radio" name="q5"> Para rodar o programa</label></div>
 <hr>
 <h2>Missões</h2>
-<div class="trycmd" data-goal="src:const\s+nome\s*:\s*string\s*=;;src:`[^`]*\$\{\s*nome\s*\}[^`]*`;;semerro;;out:Olá, Bia! Seja bem-vinda.">
-<p class="try-task"><strong>Missão:</strong> guarde <code>"Bia"</code> numa <code>const nome: string</code> e mostre <code>Olá, Bia! Seja bem-vinda.</code> usando uma template string com <code>${nome}</code>.</p>
+<div class="trycmd" data-goal="src:const\s+nome\s*:\s*string\s*=;;src:`[^`]*\$\{\s*nome\s*\}[^`]*`;;semerro;;out:Olá, Duda! Seja bem-vinda.">
+<p class="try-task"><strong>Missão:</strong> guarde <code>"Duda"</code> numa <code>const nome: string</code> e mostre <code>Olá, Duda! Seja bem-vinda.</code> usando uma template string com <code>${nome}</code>.</p>
 <pre class="script" data-file="src/missao.ts">
-const nome = "Bia";
+const nome = "Duda";
 console.log("Olá, " + nome + "! Seja bem-vinda.");
 </pre>
 <pre class="solucao" data-file="src/missao.ts">
-const nome: string = "Bia";
+const nome: string = "Duda";
 console.log(`Olá, ${nome}! Seja bem-vinda.`);
 </pre>
 <pre class="saida-ok" data-file="src/missao.ts" hidden>
-Olá, Bia! Seja bem-vinda.
+Olá, Duda! Seja bem-vinda.
 </pre>
 </div>
 <div class="trycmd" data-goal="src:toUpperCase\(\);;semerro;;out:TYPESCRIPT">

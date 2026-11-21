@@ -171,15 +171,15 @@ console.log(`${filme.titulo} (${filme.ano})`);
 Central do Brasil (1998)
 </pre>
 </div>
-<div class="trycmd" data-goal="src:telefone\s*\?\s*:\s*string;;semerro;;out:Bia - sem telefone;;out:Caio - 81 98888-7777">
-<p class="try-task"><strong>Missão:</strong> no tipo <code>Contato</code>, torne o <code>telefone</code> opcional, para o contato da Bia (sem telefone) ser aceito. A função já mostra <code>sem telefone</code> quando ele falta.</p>
+<div class="trycmd" data-goal="src:telefone\s*\?\s*:\s*string;;semerro;;out:Duda - sem telefone;;out:Caio - 81 98888-7777">
+<p class="try-task"><strong>Missão:</strong> no tipo <code>Contato</code>, torne o <code>telefone</code> opcional, para o contato da Duda (sem telefone) ser aceito. A função já mostra <code>sem telefone</code> quando ele falta.</p>
 <pre class="script" data-file="src/missao.ts">
 type Contato = { nome: string; telefone: string };
 
 function mostrar(c: Contato) {
   console.log(`${c.nome} - ${c.telefone ?? "sem telefone"}`);
 }
-mostrar({ nome: "Bia" });
+mostrar({ nome: "Duda" });
 mostrar({ nome: "Caio", telefone: "81 98888-7777" });
 </pre>
 <pre class="solucao" data-file="src/missao.ts">
@@ -188,11 +188,11 @@ type Contato = { nome: string; telefone?: string };
 function mostrar(c: Contato) {
   console.log(`${c.nome} - ${c.telefone ?? "sem telefone"}`);
 }
-mostrar({ nome: "Bia" });
+mostrar({ nome: "Duda" });
 mostrar({ nome: "Caio", telefone: "81 98888-7777" });
 </pre>
 <pre class="saida-ok" data-file="src/missao.ts" hidden>
-Bia - sem telefone
+Duda - sem telefone
 Caio - 81 98888-7777
 </pre>
 </div>

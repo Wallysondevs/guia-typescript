@@ -28,7 +28,7 @@
 <hr>
 <h2>1. Array de um tipo só</h2>
 <pre class="file" data-file="src/arrays.ts">const notas: number[] = [7.5, 8, 9.5];
-const nomes: Array&lt;string&gt; = ["Ana", "Bia", "Caio"];
+const nomes: Array&lt;string&gt; = ["Ana", "Duda", "Caio"];
 
 notas.push(10);
 console.log(notas);
@@ -36,7 +36,7 @@ console.log(nomes.join(", "));
 console.log(notas.length);</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/arrays.js
 [ 7.5, 8, 9.5, 10 ]
-Ana, Bia, Caio
+Ana, Duda, Caio
 4</pre>
 <p><code>number[]</code> e <code>Array&lt;number&gt;</code> são a mesma coisa. A primeira forma é a mais usada; a segunda aparece de novo na aula <a href="generics.html">Generics</a>.</p>
 <p>O compilador não deixa entrar um item do tipo errado:</p>

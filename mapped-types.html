@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapped Types — criando tipos a partir de outros | Guia TypeScript</title>
+<meta name="description" content="Mapped types em TypeScript: a sintaxe [K in keyof T], modificadores readonly e ?, os sinais + e -, remapeamento de chaves com as e como Partial e Readonly são feitos, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Mapped <span class="hl">Types</span></h1>
+
+<p class="intro">Lembra do <code>Partial</code> e do <code>Readonly</code>? Eles não são mágica: são <strong>mapped types</strong>, tipos que “passeiam” pelas chaves de outro tipo e montam um novo, campo a campo. Nesta aula você aprende a escrever os seus.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A sintaxe <code>{ [K in Chaves]: Tipo }</code>.</li>
+<li>Percorrer as chaves de um tipo com <code>keyof</code>.</li>
+<li>Colocar e tirar <code>readonly</code> e <code>?</code> (com <code>+</code> e <code>-</code>).</li>
+<li>Renomear chaves com <code>as</code>.</li>
+</ul></div>
+<hr>
+<h2>1. A forma básica</h2>
+<p>Um mapped type percorre uma união de chaves e dá um tipo para cada uma:</p>
+<pre class="file" data-file="src/mapa.ts">type Dia = "seg" | "ter" | "qua";
+type Agenda = { [D in Dia]: string[] };
+
+const semana: Agenda = {
+  seg: ["academia"],
+  ter: [],
+  qua: ["reunião", "dentista"],
+};
+console.log(semana);
+
+const incompleta: Agenda = { seg: [], ter: [] };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/mapa.ts(11,7): error TS2741: Property 'qua' is missing in type '{ seg: never[]; ter: never[]; }' but required in type 'Agenda'.</pre>
+<dl class="anatomy">
+<dt><code>[D in Dia]</code></dt><dd>para cada <code>D</code> da união <code>Dia</code> (<code>"seg"</code>, <code>"ter"</code>, <code>"qua"</code>)…</dd>
+<dt><code>: string[]</code></dt><dd>…crie a propriedade <code>D</code> com este tipo.</dd>
+</dl>
+<p>O resultado é igual a escrever <code>{ seg: string[]; ter: string[]; qua: string[] }</code>, e por isso faltar <code>qua</code> dá erro.</p>
+<hr>
+<h2>2. Percorrendo outro tipo com keyof</h2>
+<p>O uso mais comum: <code>[K in keyof T]</code> percorre os campos de <code>T</code>, e <code>T[K]</code> é o tipo de cada um.</p>
+
+<pre class="file" data-file="src/keyof.ts">type Produto = { nome: string; preco: number; ativo: boolean };
+
+type Validacao&lt;T&gt; = { [K in keyof T]: boolean };
+type ComoTexto&lt;T&gt; = { [K in keyof T]: string };
+type Getters&lt;T&gt; = { [K in keyof T]: () =&gt; T[K] };
+
+const v: Validacao&lt;Produto&gt; = { nome: true, preco: false, ativo: true };
+const form: ComoTexto&lt;Produto&gt; = { nome: "Caneta", preco: "2.5", ativo: "sim" };
+const g: Getters&lt;Produto&gt; = {
+  nome: () =&gt; "Caneta",
+  preco: () =&gt; 2.5,
+  ativo: () =&gt; true,
+};
+console.log(v, form, g.preco());
+
+const errado: Getters&lt;Produto&gt; = { nome: () =&gt; "x", preco: () =&gt; "caro", ativo: () =&gt; true };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/keyof.ts(16,66): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+<p>Em <code>Getters</code>, a função de <code>preco</code> precisa devolver <code>Produto["preco"]</code>, ou seja, <code>number</code>.</p>
+<hr>
+<h2>3. Modificadores: readonly, ? e o sinal de menos</h2>
+<p>Dá para pôr <code>readonly</code> e <code>?</code> em todos os campos, e também <strong>tirar</strong> com <code>-</code>. É assim que <code>Partial</code>, <code>Readonly</code> e <code>Required</code> são escritos:</p>
+
+<pre class="file" data-file="src/modificadores.ts">type MeuPartial&lt;T&gt; = { [K in keyof T]?: T[K] };
+type MeuReadonly&lt;T&gt; = { readonly [K in keyof T]: T[K] };
+type MeuRequired&lt;T&gt; = { [K in keyof T]-?: T[K] };
+type Mutavel&lt;T&gt; = { -readonly [K in keyof T]: T[K] };
+
+type Config = { readonly tema: string; fonte?: number };
+
+const parcial: MeuPartial&lt;Config&gt; = {};
+const fixa: MeuReadonly&lt;{ x: number }&gt; = { x: 1 };
+const completa: MeuRequired&lt;Config&gt; = { tema: "claro" };
+const livre: Mutavel&lt;Config&gt; = { tema: "claro" };
+livre.tema = "escuro";
+fixa.x = 2;
+console.log(parcial, completa, livre);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/modificadores.ts(10,7): error TS2741: Property 'fonte' is missing in type '{ tema: string; }' but required in type 'MeuRequired&lt;Config&gt;'.
+src/modificadores.ts(13,6): error TS2540: Cannot assign to 'x' because it is a read-only property.</pre>
+<ul>
+<li><code>-?</code> tirou o opcional de <code>fonte</code>: por isso <code>completa</code> dá erro.</li>
+<li><code>-readonly</code> liberou <code>livre.tema = "escuro"</code>.</li>
+<li><code>readonly</code> bloqueou <code>fixa.x = 2</code>.</li>
+</ul>
+<hr>
+<h2>4. Renomeando chaves com as</h2>
+<p>Com <code>as</code> você muda o nome de cada chave. Junto com os template literal types (próximas aulas), dá para gerar nomes como <code>getNome</code>:</p>
+
+<pre class="file" data-file="src/renomear.ts">type Pessoa = { nome: string; idade: number };
+
+type ComPrefixo&lt;T&gt; = { [K in keyof T as `get${Capitalize&lt;string &amp; K&gt;}`]: () =&gt; T[K] };
+type SemIdade&lt;T&gt; = { [K in keyof T as K extends "idade" ? never : K]: T[K] };
+
+const p: ComPrefixo&lt;Pessoa&gt; = {
+  getNome: () =&gt; "Ana",
+  getIdade: () =&gt; 30,
+};
+const s: SemIdade&lt;Pessoa&gt; = { nome: "Duda" };
+console.log(p.getNome(), p.getIdade(), s);
+
+const errado: ComPrefixo&lt;Pessoa&gt; = { nome: () =&gt; "Ana", getIdade: () =&gt; 30 };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/renomear.ts(13,38): error TS2353: Object literal may only specify known properties, and 'nome' does not exist in type 'ComPrefixo&lt;Pessoa&gt;'.</pre>
+<p>Mapear uma chave para <code>never</code> com <code>as</code> remove a chave: foi assim que <code>SemIdade</code> funcionou (é o mesmo truque do <code>Omit</code>).</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Usar in fora de um mapped type</strong>
+<p>A sintaxe <code>[K in …]</code> só existe dentro de um <code>type</code>. Numa <code>interface</code>, não:</p>
+
+<pre class="file" data-file="src/interface.ts">type Dia = "seg" | "ter";
+interface Agenda {
+  [D in Dia]: string[];
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/interface.ts(3,3): error TS7061: A mapped type may not declare properties or methods.</pre>
+<p>Use <code>type Agenda = { [D in Dia]: string[] }</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Efeito</th></tr>
+<tr><td><code>{ [K in U]: X }</code></td><td>uma propriedade para cada membro de <code>U</code></td></tr>
+<tr><td><code>{ [K in keyof T]: T[K] }</code></td><td>copia os campos de <code>T</code></td></tr>
+<tr><td><code>readonly [K in …]</code> / <code>-readonly</code></td><td>põe / tira <code>readonly</code></td></tr>
+<tr><td><code>[K in …]?</code> / <code>-?</code></td><td>põe / tira o opcional</td></tr>
+<tr><td><code>[K in keyof T as NovoNome]</code></td><td>renomeia (ou remove com <code>never</code>)</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Percorrer</h3><p>Complete para percorrer as chaves de <code>T</code>:</p><div class="ex-code">type Copia&lt;T&gt; = { [K in <input data-answer="keyof T" aria-label="chaves">]: T[K] };</div></div>
+<div class="exercise"><h3>2. Tirar o opcional</h3><p>Complete o modificador:</p><div class="ex-code">type Obrigatorio&lt;T&gt; = { [K in keyof T]<input data-answer="-?" aria-label="modificador">: T[K] };</div></div>
+<div class="exercise"><h3>3. Remover chave</h3><p>Mapear a chave para qual tipo a remove?</p><div class="ex-code"><input data-answer="never" aria-label="tipo"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. <code>{ [K in "a" | "b"]: number }</code> é igual a:</p>
+<label><input type="radio" name="q4"> <code>number[]</code></label>
+<label><input type="radio" name="q4"> <code>{ a: number; b: number }</code></label>
+<label><input type="radio" name="q4"> <code>{ K: number }</code></label>
+<label><input type="radio" name="q4"> <code>"a" | "b"</code></label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. O que <code>-readonly</code> faz?</p>
+<label><input type="radio" name="q5"> Deixa tudo somente leitura</label>
+<label><input type="radio" name="q5"> Apaga os campos</label>
+<label><input type="radio" name="q5"> Tira o <code>readonly</code> dos campos</label>
+<label><input type="radio" name="q5"> Torna os campos opcionais</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:\[\s*\w+\s+in\s+Canal\s*\];;semerro;;out:{ email: true, sms: false, push: true }">
+<p class="try-task"><strong>Missão:</strong> crie o tipo <code>Preferencias</code> como mapped type sobre <code>Canal</code>, com cada canal sendo <code>boolean</code>. Saída esperada: <code>{ email: true, sms: false, push: true }</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Canal = "email" | "sms" | "push";
+type Preferencias = { email: boolean; sms: boolean; push: boolean };
+const p: Preferencias = { email: true, sms: false, push: true };
+console.log(p);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Canal = "email" | "sms" | "push";
+type Preferencias = { [C in Canal]: boolean };
+const p: Preferencias = { email: true, sms: false, push: true };
+console.log(p);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+{ email: true, sms: false, push: true }
+</pre>
+</div>
+<div class="trycmd" data-goal="src:\[\s*\w+\s+in\s+keyof\s+T\s*\]\s*:\s*T\s*\[\s*\w+\s*\]\s*\|\s*null;;semerro;;out:{ nome: 'Ana', email: null }">
+<p class="try-task"><strong>Missão:</strong> escreva o mapped type <code>Anulavel&lt;T&gt;</code>, em que cada campo de <code>T</code> também aceita <code>null</code> (<code>T[K] | null</code>). Saída esperada: <code>{ nome: 'Ana', email: null }</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Contato = { nome: string; email: string };
+type Anulavel&lt;T&gt; = T;
+const c: Anulavel&lt;Contato&gt; = { nome: "Ana", email: null };
+console.log(c);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Contato = { nome: string; email: string };
+type Anulavel&lt;T&gt; = { [K in keyof T]: T[K] | null };
+const c: Anulavel&lt;Contato&gt; = { nome: "Ana", email: null };
+console.log(c);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+{ nome: 'Ana', email: null }
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Mapped type: <code>{ [K in Chaves]: Tipo }</code>, um campo por chave.</li>
+<li><code>[K in keyof T]</code> com <code>T[K]</code> transforma os campos de outro tipo.</li>
+<li><code>readonly</code>, <code>?</code>, <code>-readonly</code> e <code>-?</code> mudam os modificadores.</li>
+<li><code>as</code> renomeia chaves; <code>as never</code> remove.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

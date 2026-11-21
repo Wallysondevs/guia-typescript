@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conditional Types — tipos com if/else | Guia TypeScript</title>
+<meta name="description" content="Conditional types em TypeScript: a forma T extends U ? X : Y, distribuição sobre unions, como Exclude e NonNullable funcionam e como evitar a distribuição com colchetes, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Conditional <span class="hl">Types</span></h1>
+
+<p class="intro">E se um tipo pudesse tomar uma <strong>decisão</strong>? “Se <code>T</code> for texto, use isto; senão, aquilo”. É o que fazem os <strong>conditional types</strong>, com a mesma cara do operador ternário do JavaScript: <code>T extends U ? X : Y</code>.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A forma <code>T extends U ? X : Y</code>.</li>
+<li>Conditional types com generics em funções.</li>
+<li>Distribuição sobre unions (e como o <code>Exclude</code> funciona).</li>
+<li>Como desligar a distribuição.</li>
+</ul></div>
+<hr>
+<h2>1. A forma básica</h2>
+<pre class="file" data-file="src/condicional.ts">type EhTexto&lt;T&gt; = T extends string ? "sim" : "não";
+
+const a: EhTexto&lt;string&gt; = "sim";
+const b: EhTexto&lt;number&gt; = "não";
+const c: EhTexto&lt;"olá"&gt; = "sim";
+console.log(a, b, c);
+
+const d: EhTexto&lt;boolean&gt; = "sim";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/condicional.ts(8,7): error TS2322: Type '"sim"' is not assignable to type '"não"'.</pre>
+<dl class="anatomy">
+<dt><code>T extends string</code></dt><dd>a pergunta: “<code>T</code> cabe em <code>string</code>?”. <code>"olá"</code> cabe (é um tipo de texto mais específico).</dd>
+<dt><code>? "sim" : "não"</code></dt><dd>o resultado de cada lado.</dd>
+</dl>
+<p><code>EhTexto&lt;boolean&gt;</code> virou <code>"não"</code>, então <code>"sim"</code> foi recusado.</p>
+<hr>
+<h2>2. Na prática: o tipo de saída depende da entrada</h2>
+
+<pre class="file" data-file="src/pratica.ts">type Embalado&lt;T&gt; = T extends unknown[] ? T : T[];
+
+function emLista&lt;T&gt;(valor: T): Embalado&lt;T&gt; {
+  return (Array.isArray(valor) ? valor : [valor]) as Embalado&lt;T&gt;;
+}
+
+const x = emLista(5);
+const y = emLista(["a", "b"]);
+const x2: number[] = x;
+const y2: string[] = y;
+console.log(x2, y2);
+
+const errado: string = emLista(5);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/pratica.ts(13,7): error TS2322: Type 'number[]' is not assignable to type 'string'.</pre>
+<p><code>emLista(5)</code> devolve <code>number[]</code> e <code>emLista(["a","b"])</code> devolve <code>string[]</code> (sem virar lista de listas). Repare no <code>as Embalado&lt;T&gt;</code>: dentro da função, o TypeScript não consegue provar sozinho qual lado do condicional vale, então usamos uma asserção.</p>
+<hr>
+<h2>3. Distribuição sobre unions</h2>
+<p>Quando <code>T</code> é uma union, o condicional é aplicado <strong>em cada membro</strong> separadamente e os resultados se juntam. É assim que o <code>Exclude</code> e o <code>NonNullable</code> funcionam:</p>
+
+<pre class="file" data-file="src/distribui.ts">type MeuExclude&lt;T, U&gt; = T extends U ? never : T;
+type SemNulos&lt;T&gt; = T extends null | undefined ? never : T;
+
+type Status = "ativo" | "inativo" | "banido";
+type Permitido = MeuExclude&lt;Status, "banido"&gt;;
+
+const ok: Permitido = "ativo";
+const ok2: SemNulos&lt;string | null | undefined&gt; = "texto";
+console.log(ok, ok2);
+
+const er: Permitido = "banido";
+const er2: SemNulos&lt;string | null&gt; = null;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/distribui.ts(11,7): error TS2322: Type '"banido"' is not assignable to type 'Permitido'.
+src/distribui.ts(12,7): error TS2322: Type 'null' is not assignable to type 'string'.</pre>
+<p>Passo a passo de <code>MeuExclude&lt;Status, "banido"&gt;</code>: <code>"ativo"</code> → <code>"ativo"</code>; <code>"inativo"</code> → <code>"inativo"</code>; <code>"banido"</code> → <code>never</code>. Juntando, <code>never</code> some e fica <code>"ativo" | "inativo"</code>.</p>
+<hr>
+<h2>4. Desligando a distribuição</h2>
+<p>Às vezes você quer testar a union <strong>inteira</strong>. Envolva os dois lados em colchetes:</p>
+
+<pre class="file" data-file="src/colchetes.ts">type Distribui&lt;T&gt; = T extends string ? "texto" : "outro";
+type Inteiro&lt;T&gt; = [T] extends [string] ? "texto" : "outro";
+
+const a: Distribui&lt;string | number&gt; = "outro";
+const b: Distribui&lt;string | number&gt; = "texto";
+const c: Inteiro&lt;string | number&gt; = "outro";
+const d: Inteiro&lt;string | number&gt; = "texto";
+console.log(a, b, c);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/colchetes.ts(7,7): error TS2322: Type '"texto"' is not assignable to type '"outro"'.</pre>
+<p><code>Distribui&lt;string | number&gt;</code> é <code>"texto" | "outro"</code> (aceita os dois). <code>Inteiro&lt;string | number&gt;</code> perguntou sobre a union toda, que não cabe em <code>string</code>: só <code>"outro"</code>.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Devolver um dos lados sem asserção</strong>
+
+<pre class="file" data-file="src/sem-assercao.ts">type Rotulo&lt;T&gt; = T extends number ? "número" : "outro";
+
+function rotulo&lt;T&gt;(v: T): Rotulo&lt;T&gt; {
+  return typeof v === "number" ? "número" : "outro";
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-assercao.ts(4,34): error TS2322: Type '"número"' is not assignable to type 'Rotulo&lt;T&gt;'.
+src/sem-assercao.ts(4,45): error TS2322: Type '"outro"' is not assignable to type 'Rotulo&lt;T&gt;'.</pre>
+<p>O narrowing de <code>v</code> não muda o tipo genérico <code>T</code>, então o TypeScript não aceita nenhum dos lados. Saídas: usar <code>as Rotulo&lt;T&gt;</code> no retorno, ou trocar o condicional por <strong>sobrecargas</strong> (aula de sobrecarga).</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>T extends U ? X : Y</code></td><td>se <code>T</code> cabe em <code>U</code>, <code>X</code>; senão <code>Y</code></td></tr>
+<tr><td><code>T extends U ? never : T</code></td><td>remove membros (o <code>Exclude</code>)</td></tr>
+<tr><td><code>[T] extends [U] ? …</code></td><td>testa a union inteira, sem distribuir</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. A pergunta</h3><p>Complete:</p><div class="ex-code">type EhNumero&lt;T&gt; = T <input data-answer="extends" aria-label="palavra"> number ? true : false;</div></div>
+<div class="exercise"><h3>2. Remover</h3><p>Qual tipo some de uma union e é usado para remover membros?</p><div class="ex-code"><input data-answer="never" aria-label="tipo"></div></div>
+<div class="exercise"><h3>3. Resultado</h3><p>Qual o resultado de <code>Exclude&lt;"a" | "b" | "c", "a"&gt;</code>? (escreva com aspas duplas e espaços: <code>"x" | "y"</code>)</p><div class="ex-code"><input data-answer="&quot;b&quot; | &quot;c&quot;|&quot;c&quot; | &quot;b&quot;" aria-label="tipo"></div></div>
+<div class="mc" data-answer="1"><p class="mc-q">4. Quando <code>T</code> é uma union, um conditional type comum…</p>
+<label><input type="radio" name="q4"> …é aplicado em cada membro e os resultados se juntam</label>
+<label><input type="radio" name="q4"> …dá erro</label>
+<label><input type="radio" name="q4"> …olha só o primeiro membro</label>
+<label><input type="radio" name="q4"> …vira <code>any</code></label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. Para testar a union inteira, sem distribuir, você escreve:</p>
+<label><input type="radio" name="q5"> <code>T extends U ?</code></label>
+<label><input type="radio" name="q5"> <code>T in U ?</code></label>
+<label><input type="radio" name="q5"> <code>[T] extends [U] ?</code></label>
+<label><input type="radio" name="q5"> <code>keyof T extends U ?</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:T\s+extends\s+string\s*\?\s*number\s*:\s*string;;semerro;;out:4 texto">
+<p class="try-task"><strong>Missão:</strong> complete o tipo <code>Troca&lt;T&gt;</code>: se <code>T</code> for <code>string</code>, o resultado é <code>number</code>; senão, <code>string</code>. Saída esperada: <code>4 texto</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Troca&lt;T&gt; = unknown;
+const a: Troca&lt;string&gt; = 4;
+const b: Troca&lt;boolean&gt; = "texto";
+console.log(a, b);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Troca&lt;T&gt; = T extends string ? number : string;
+const a: Troca&lt;string&gt; = 4;
+const b: Troca&lt;boolean&gt; = "texto";
+console.log(a, b);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+4 texto
+</pre>
+</div>
+<div class="trycmd" data-goal="src:extends\s+&quot;pix&quot;\s*\?\s*never\s*:\s*T|Exclude\s*&lt;\s*Pagamento\s*,\s*&quot;pix&quot;\s*&gt;;;semerro;;out:cartao">
+<p class="try-task"><strong>Missão:</strong> crie o tipo <code>SemPix</code> (com um conditional type ou <code>Exclude</code>) que tira <code>"pix"</code> de <code>Pagamento</code>. O código deve compilar e mostrar <code>cartao</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Pagamento = "pix" | "cartao" | "boleto";
+type SemPix = Pagamento;
+const forma: SemPix = "cartao";
+console.log(forma);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Pagamento = "pix" | "cartao" | "boleto";
+type SemPix = Exclude&lt;Pagamento, "pix"&gt;;
+const forma: SemPix = "cartao";
+console.log(forma);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+cartao
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>T extends U ? X : Y</code> é um “if” de tipos.</li>
+<li>Com unions, o condicional distribui; <code>never</code> some do resultado.</li>
+<li><code>Exclude</code> e <code>NonNullable</code> são conditional types.</li>
+<li><code>[T] extends [U]</code> desliga a distribuição.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

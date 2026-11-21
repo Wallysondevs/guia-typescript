@@ -106,8 +106,8 @@ src/indice.ts(3,13): error TS18048: 'primeiro' is possibly 'undefined'.</pre>
 
 <pre class="file" data-file="src/opcional.ts">type Perfil = { nome: string; apelido?: string };
 const ana: Perfil = { nome: "Ana" };
-const bia: Perfil = { nome: "Bia", apelido: undefined };
-console.log(ana, bia);</pre>
+const duda: Perfil = { nome: "Duda", apelido: undefined };
+console.log(ana, duda);</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc
 src/opcional.ts(3,7): error TS2375: Type '{ nome: string; apelido: undefined; }' is not assignable to type 'Perfil' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
   Types of property 'apelido' are incompatible.

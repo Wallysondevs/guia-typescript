@@ -56,12 +56,12 @@ function buscarPorId&lt;T extends ComId&gt;(lista: T[], id: number): T | undefin
 
 const usuarios = [
   { id: 1, nome: "Ana" },
-  { id: 2, nome: "Bia" },
+  { id: 2, nome: "Duda" },
 ];
 const u = buscarPorId(usuarios, 2);
 console.log(u?.nome);</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/interface.js
-Bia</pre>
+Duda</pre>
 <p>Repare: a função só sabe que cada item tem <code>id</code>, mas o resultado mantém o tipo completo, com <code>nome</code>. Esse é o ganho sobre escrever <code>lista: ComId[]</code>, que perderia o <code>nome</code>. (O <code>?.</code> lê o campo só se <code>u</code> existir; aula <a href="null-undefined.html">null, undefined e ?.</a>.)</p>
 <hr>
 <h2>3. K extends keyof T</h2>
@@ -153,24 +153,24 @@ console.log("Total: " + somarPrecos([{ nome: "pão", preco: 10 }, { nome: "café
 Total: 35
 </pre>
 </div>
-<div class="trycmd" data-goal="src:K\s+extends\s+keyof\s+T;;semerro;;out:Bia;;out:28">
-<p class="try-task"><strong>Missão:</strong> escreva <code>function ler&lt;T, K extends keyof T&gt;(obj: T, chave: K): T[K]</code> e mostre <code>ler(pessoa, "nome")</code> e <code>ler(pessoa, "idade")</code> para <code>{ nome: "Bia", idade: 28 }</code>.</p>
+<div class="trycmd" data-goal="src:K\s+extends\s+keyof\s+T;;semerro;;out:Duda;;out:28">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function ler&lt;T, K extends keyof T&gt;(obj: T, chave: K): T[K]</code> e mostre <code>ler(pessoa, "nome")</code> e <code>ler(pessoa, "idade")</code> para <code>{ nome: "Duda", idade: 28 }</code>.</p>
 <pre class="script" data-file="src/missao.ts">
 function ler(obj: any, chave: string) {
   return obj[chave];
 }
-const pessoa = { nome: "Bia", idade: 28 };
+const pessoa = { nome: "Duda", idade: 28 };
 </pre>
 <pre class="solucao" data-file="src/missao.ts">
 function ler&lt;T, K extends keyof T&gt;(obj: T, chave: K): T[K] {
   return obj[chave];
 }
-const pessoa = { nome: "Bia", idade: 28 };
+const pessoa = { nome: "Duda", idade: 28 };
 console.log(ler(pessoa, "nome"));
 console.log(ler(pessoa, "idade"));
 </pre>
 <pre class="saida-ok" data-file="src/missao.ts" hidden>
-Bia
+Duda
 28
 </pre>
 </div>

@@ -1,8 +1,8 @@
-# nada de rascunho, coleta bruta ou dependências no repositório
+# dependencias e arquivos temporarios ficam fora do repositorio
+# (logs de geracao nao sao publicados)
 node_modules/
 tools/node_modules/
-_saidas/
-_coleta/
+QUADRO*.md
 *.bak
 *.log
 .DS_Store

@@ -60,7 +60,7 @@ Node.js v24.22.1</pre>
 }
 
 const n = primeiro([10, 20, 30]);
-const s = primeiro(["ana", "bia"]);
+const s = primeiro(["ana", "duda"]);
 console.log(n, s);
 
 const erro: string = primeiro([10, 20, 30]);</pre>
@@ -94,11 +94,11 @@ function mapear&lt;T, R&gt;(lista: T[], fn: (item: T) =&gt; R): R[] {
 
 console.log(par("Ana", 30));
 console.log(mapear([1, 2, 3], (n) =&gt; "#" + n));
-console.log(mapear(["ana", "bia"], (s) =&gt; s.length));</pre>
+console.log(mapear(["ana", "duda"], (s) =&gt; s.length));</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/par.js
 [ 'Ana', 30 ]
 [ '#1', '#2', '#3' ]
-[ 3, 3 ]</pre>
+[ 3, 4 ]</pre>
 <p>É assim que o <code>map</code> dos arrays é tipado: entra uma lista de <code>T</code>, sai uma lista de <code>R</code>, o que a sua função devolver.</p>
 <hr>
 <h2>4. Types e interfaces genéricas</h2>
@@ -165,9 +165,9 @@ src/t-sem-length.ts(2,12): error TS2339: Property 'length' does not exist on typ
 
 <pre class="file" data-file="src/map.ts">const idades = new Map&lt;string, number&gt;();
 idades.set("Ana", 30);
-idades.set("Bia", "vinte");</pre>
+idades.set("Duda", "vinte");</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc
-src/map.ts(3,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
+src/map.ts(3,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.</pre>
 </div>
 <hr>
 <h2>Exercícios</h2>
@@ -186,8 +186,8 @@ src/map.ts(3,19): error TS2345: Argument of type 'string' is not assignable to p
 <label><input type="radio" name="q5"> Generics existem no JavaScript gerado</label></div>
 <hr>
 <h2>Missões</h2>
-<div class="trycmd" data-goal="src:function\s+ultimo\s*&lt;\s*T\s*&gt;\s*\(\s*\w+\s*:\s*T\[\]\s*\);;semerro;;out:30;;out:bia">
-<p class="try-task"><strong>Missão:</strong> escreva <code>function ultimo&lt;T&gt;(lista: T[]): T | undefined</code>, que devolve o último item, e mostre o resultado para <code>[10, 20, 30]</code> e para <code>["ana", "bia"]</code>.</p>
+<div class="trycmd" data-goal="src:function\s+ultimo\s*&lt;\s*T\s*&gt;\s*\(\s*\w+\s*:\s*T\[\]\s*\);;semerro;;out:30;;out:duda">
+<p class="try-task"><strong>Missão:</strong> escreva <code>function ultimo&lt;T&gt;(lista: T[]): T | undefined</code>, que devolve o último item, e mostre o resultado para <code>[10, 20, 30]</code> e para <code>["ana", "duda"]</code>.</p>
 <pre class="script" data-file="src/missao.ts">
 function ultimo(lista: any[]): any {
   return lista[lista.length - 1];
@@ -198,15 +198,15 @@ function ultimo&lt;T&gt;(lista: T[]): T | undefined {
   return lista[lista.length - 1];
 }
 console.log(ultimo([10, 20, 30]));
-console.log(ultimo(["ana", "bia"]));
+console.log(ultimo(["ana", "duda"]));
 </pre>
 <pre class="saida-ok" data-file="src/missao.ts" hidden>
 30
-bia
+duda
 </pre>
 </div>
 <div class="trycmd" data-goal="src:class\s+Fila\s*&lt;\s*T\s*&gt;;;semerro;;out:primeiro: Ana;;out:restam: 1">
-<p class="try-task"><strong>Missão:</strong> complete a <code>class Fila&lt;T&gt;</code> com <code>entrar(item: T)</code> e <code>sair(): T | undefined</code> (use <code>shift()</code>). Com uma fila de textos, faça <code>"Ana"</code> e <code>"Bia"</code> entrarem, e mostre <code>primeiro: Ana</code> e <code>restam: 1</code>.</p>
+<p class="try-task"><strong>Missão:</strong> complete a <code>class Fila&lt;T&gt;</code> com <code>entrar(item: T)</code> e <code>sair(): T | undefined</code> (use <code>shift()</code>). Com uma fila de textos, faça <code>"Ana"</code> e <code>"Duda"</code> entrarem, e mostre <code>primeiro: Ana</code> e <code>restam: 1</code>.</p>
 <pre class="script" data-file="src/missao.ts">
 class Fila {
   itens: any[] = [];
@@ -227,7 +227,7 @@ class Fila&lt;T&gt; {
 }
 const f = new Fila&lt;string&gt;();
 f.entrar("Ana");
-f.entrar("Bia");
+f.entrar("Duda");
 console.log("primeiro: " + f.sair());
 console.log("restam: " + f.tamanho);
 </pre>
@@ -236,19 +236,19 @@ primeiro: Ana
 restam: 1
 </pre>
 </div>
-<div class="trycmd" data-goal="src:Resposta\s*&lt;\s*string\[\]\s*&gt;;;semerro;;out:2 nomes: Ana, Bia">
-<p class="try-task"><strong>Missão:</strong> use o tipo genérico <code>Resposta&lt;T&gt;</code> com <code>T = string[]</code> para tipar <code>r</code> e mostre <code>2 nomes: Ana, Bia</code> usando <code>r.dados</code>.</p>
+<div class="trycmd" data-goal="src:Resposta\s*&lt;\s*string\[\]\s*&gt;;;semerro;;out:2 nomes: Ana, Duda">
+<p class="try-task"><strong>Missão:</strong> use o tipo genérico <code>Resposta&lt;T&gt;</code> com <code>T = string[]</code> para tipar <code>r</code> e mostre <code>2 nomes: Ana, Duda</code> usando <code>r.dados</code>.</p>
 <pre class="script" data-file="src/missao.ts">
 type Resposta&lt;T&gt; = { ok: boolean; dados: T };
-const r = { ok: true, dados: ["Ana", "Bia"] };
+const r = { ok: true, dados: ["Ana", "Duda"] };
 </pre>
 <pre class="solucao" data-file="src/missao.ts">
 type Resposta&lt;T&gt; = { ok: boolean; dados: T };
-const r: Resposta&lt;string[]&gt; = { ok: true, dados: ["Ana", "Bia"] };
+const r: Resposta&lt;string[]&gt; = { ok: true, dados: ["Ana", "Duda"] };
 console.log(`${r.dados.length} nomes: ${r.dados.join(", ")}`);
 </pre>
 <pre class="saida-ok" data-file="src/missao.ts" hidden>
-2 nomes: Ana, Bia
+2 nomes: Ana, Duda
 </pre>
 </div>
 <hr>

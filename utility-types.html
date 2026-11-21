@@ -52,7 +52,7 @@ console.log(atualizar(ana, { idade: 31, nome: "Ana Souza" }));</pre>
 
 <pre class="file" data-file="src/required.ts">type Usuario = { id: number; nome: string; email: string; idade?: number };
 
-const completo: Required&lt;Usuario&gt; = { id: 2, nome: "Bia", email: "bia@exemplo.com" };
+const completo: Required&lt;Usuario&gt; = { id: 2, nome: "Duda", email: "duda@exemplo.com" };
 
 const fixo: Readonly&lt;Usuario&gt; = { id: 3, nome: "Caio", email: "caio@exemplo.com" };
 fixo.nome = "Outro";</pre>
@@ -75,7 +75,7 @@ function cadastrar(dados: NovoUsuario): Usuario {
 }
 
 console.log(c);
-console.log(cadastrar({ nome: "Bia", email: "bia@exemplo.com" }));
+console.log(cadastrar({ nome: "Duda", email: "duda@exemplo.com" }));
 
 const errado: Cartao = { nome: "Caio", email: "c@exemplo.com", id: 9 };</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc

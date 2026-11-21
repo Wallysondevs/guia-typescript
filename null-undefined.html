@@ -28,7 +28,7 @@
 <hr>
 <h2>1. O erro que o JavaScript deixa passar</h2>
 <p>Em JavaScript, este código roda e quebra:</p>
-<pre class="file" data-file="busca.js">const usuarios = [{ nome: "Ana" }, { nome: "Bia" }];
+<pre class="file" data-file="busca.js">const usuarios = [{ nome: "Ana" }, { nome: "Duda" }];
 const achado = usuarios.find((u) =&gt; u.nome === "Caio");
 console.log(achado.nome);</pre>
 <pre class="term" data-cwd="~/projeto">$ node busca.js
@@ -44,7 +44,7 @@ TypeError: Cannot read properties of undefined (reading 'nome')
 
 Node.js v24.22.1</pre>
 <p>Em TypeScript, o mesmo código nem compila. O <code>find</code> devolve <code>{ nome: string } | undefined</code>, porque pode não achar:</p>
-<pre class="file" data-file="src/busca.ts">const usuarios = [{ nome: "Ana" }, { nome: "Bia" }];
+<pre class="file" data-file="src/busca.ts">const usuarios = [{ nome: "Ana" }, { nome: "Duda" }];
 const achado = usuarios.find((u) =&gt; u.nome === "Caio");
 console.log(achado.nome);</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc
@@ -56,10 +56,10 @@ src/busca.ts(3,13): error TS18048: 'achado' is possibly 'undefined'.</pre>
 <pre class="file" data-file="src/opcional.ts">type Usuario = { nome: string; endereco?: { cidade: string } };
 
 const ana: Usuario = { nome: "Ana", endereco: { cidade: "Recife" } };
-const bia: Usuario = { nome: "Bia" };
+const duda: Usuario = { nome: "Duda" };
 
 console.log(ana.endereco?.cidade);
-console.log(bia.endereco?.cidade);
+console.log(duda.endereco?.cidade);
 
 function carregarLista(): string[] | undefined {
   return undefined;
@@ -84,7 +84,7 @@ function cidadeDe(u: Usuario): string {
 }
 
 console.log(cidadeDe({ nome: "Ana", endereco: { cidade: "Recife" } }));
-console.log(cidadeDe({ nome: "Bia" }));
+console.log(cidadeDe({ nome: "Duda" }));
 
 const config: { tema?: string } = {};
 config.tema ??= "claro";
@@ -116,7 +116,7 @@ com ??: 0 ""</pre>
   return null;
 }
 
-const tel = buscarTelefone("Bia");
+const tel = buscarTelefone("Duda");
 if (tel === null) {
   console.log("sem telefone");
 } else {
@@ -172,10 +172,10 @@ src/atribuir.ts(2,1): error TS2779: The left-hand side of an assignment expressi
 <label><input type="radio" name="q5"> <code>"padrão"</code></label></div>
 <hr>
 <h2>Missões</h2>
-<div class="trycmd" data-goal="src:\?\.\s*nome;;src:\?\?;;semerro;;out:Bia;;out:não encontrado">
-<p class="try-task"><strong>Missão:</strong> corrija o código usando <code>?.</code> e <code>??</code> para mostrar o nome encontrado (<code>Bia</code>) e, para o id que não existe, <code>não encontrado</code>.</p>
+<div class="trycmd" data-goal="src:\?\.\s*nome;;src:\?\?;;semerro;;out:Duda;;out:não encontrado">
+<p class="try-task"><strong>Missão:</strong> corrija o código usando <code>?.</code> e <code>??</code> para mostrar o nome encontrado (<code>Duda</code>) e, para o id que não existe, <code>não encontrado</code>.</p>
 <pre class="script" data-file="src/missao.ts">
-const pessoas = [{ id: 1, nome: "Ana" }, { id: 2, nome: "Bia" }];
+const pessoas = [{ id: 1, nome: "Ana" }, { id: 2, nome: "Duda" }];
 function nomeDe(id: number): string {
   return pessoas.find((p) =&gt; p.id === id).nome;
 }
@@ -183,7 +183,7 @@ console.log(nomeDe(2));
 console.log(nomeDe(9));
 </pre>
 <pre class="solucao" data-file="src/missao.ts">
-const pessoas = [{ id: 1, nome: "Ana" }, { id: 2, nome: "Bia" }];
+const pessoas = [{ id: 1, nome: "Ana" }, { id: 2, nome: "Duda" }];
 function nomeDe(id: number): string {
   return pessoas.find((p) =&gt; p.id === id)?.nome ?? "não encontrado";
 }
@@ -191,7 +191,7 @@ console.log(nomeDe(2));
 console.log(nomeDe(9));
 </pre>
 <pre class="saida-ok" data-file="src/missao.ts" hidden>
-Bia
+Duda
 não encontrado
 </pre>
 </div>

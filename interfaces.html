@@ -61,16 +61,16 @@ interface Funcionario extends Pessoa {
   salario: number;
 }
 
-const bia: Funcionario = { nome: "Bia", idade: 28, cargo: "Dev", salario: 7000 };
-console.log(`${bia.nome}, ${bia.idade} anos, ${bia.cargo}`);
+const duda: Funcionario = { nome: "Duda", idade: 28, cargo: "Dev", salario: 7000 };
+console.log(`${duda.nome}, ${duda.idade} anos, ${duda.cargo}`);
 
 function apresentar(p: Pessoa) {
   console.log("Olá, " + p.nome);
 }
-apresentar(bia);</pre>
+apresentar(duda);</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/extends.js
-Bia, 28 anos, Dev
-Olá, Bia</pre>
+Duda, 28 anos, Dev
+Olá, Duda</pre>
 <p>Um <code>Funcionario</code> tem tudo de <code>Pessoa</code> e mais. Por isso ele pode ser passado onde se espera uma <code>Pessoa</code>.</p>
 <hr>
 <h2>3. A forma é o que importa</h2>

@@ -111,7 +111,7 @@ type Pessoa = ComNome &amp; ComIdade;
 const p: Pessoa = { nome: "Ana", idade: 30 };
 console.log(p);
 
-const q: Pessoa = { nome: "Bia" };</pre>
+const q: Pessoa = { nome: "Duda" };</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc
 src/intersecao.ts(8,7): error TS2322: Type '{ nome: string; }' is not assignable to type 'Pessoa'.
   Property 'idade' is missing in type '{ nome: string; }' but required in type 'ComIdade'.</pre>

@@ -80,7 +80,7 @@ src/exclamacao.ts(4,13): error TS18048: 'nota1' is possibly 'undefined'.</pre>
 const nota1 = notas.get("Ana")!;
 console.log(nota1.toFixed(1));
 
-const nota2 = notas.get("Bia")!;
+const nota2 = notas.get("Duda")!;
 console.log(nota2.toFixed(1));</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/exclamacao.js
 9.0
@@ -95,7 +95,7 @@ TypeError: Cannot read properties of undefined (reading 'toFixed')
     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
 
 Node.js v24.22.1</pre>
-<p>Para a Ana deu certo. Para a Bia, que não está no mapa, o <code>!</code> mentiu e o programa quebrou. Prefira <code>?.</code>, <code>??</code> ou um <code>if</code>; deixe o <code>!</code> para quando você tem certeza absoluta.</p>
+<p>Para a Ana deu certo. Para a Duda, que não está no mapa, o <code>!</code> mentiu e o programa quebrou. Prefira <code>?.</code>, <code>??</code> ou um <code>if</code>; deixe o <code>!</code> para quando você tem certeza absoluta.</p>
 <hr>
 <h2>5. as const</h2>
 <p>O <code>as const</code> é uma asserção segura: ele só deixa o tipo <strong>mais estreito</strong>, com valores literais e somente leitura.</p>

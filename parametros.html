@@ -35,10 +35,10 @@
 }
 
 console.log(apresentar("Ana", "Recife"));
-console.log(apresentar("Bia"));</pre>
+console.log(apresentar("Duda"));</pre>
 <pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/opcional.js
 Ana, de Recife
-Bia</pre>
+Duda</pre>
 <p>Dentro da função, <code>cidade</code> é <code>string | undefined</code>: pode ter vindo ou não. Por isso o <code>if</code>. Sem ele:</p>
 
 <pre class="file" data-file="src/opcional-erro.ts">function apresentar(nome: string, cidade?: string): string {
