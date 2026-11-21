@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Template Literal Types — tipos feitos de texto | Guia TypeScript</title>
+<meta name="description" content="Template literal types em TypeScript: montar tipos de texto com crases, combinar unions, Uppercase, Lowercase, Capitalize e Uncapitalize, e extrair partes com infer, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Template <span class="hl">Literal</span> Types</h1>
+
+<p class="intro">Você já usa crases para montar textos no JavaScript: <code>`olá, ${nome}`</code>. O TypeScript aceita a mesma ideia <strong>nos tipos</strong>: dá para descrever “um texto que começa com <code>#</code>”, “<code>px</code> ou <code>rem</code> depois de um número” ou gerar todos os nomes de eventos de uma lista.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A sintaxe <code>`prefixo-${Tipo}`</code> em tipos.</li>
+<li>Combinação automática de unions.</li>
+<li><code>Uppercase</code>, <code>Lowercase</code>, <code>Capitalize</code> e <code>Uncapitalize</code>.</li>
+<li>Extrair partes de um texto com <code>infer</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Um padrão de texto</h2>
+<pre class="file" data-file="src/padrao.ts">type CorHex = `#${string}`;
+type Medida = `${number}px` | `${number}rem`;
+
+const cor: CorHex = "#ff8800";
+const largura: Medida = "320px";
+const fonte: Medida = "1.5rem";
+console.log(cor, largura, fonte);
+
+const corErrada: CorHex = "ff8800";
+const medidaErrada: Medida = "20pt";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/padrao.ts(9,7): error TS2322: Type '"ff8800"' is not assignable to type '`#${string}`'.
+src/padrao.ts(10,7): error TS2322: Type '"20pt"' is not assignable to type 'Medida'.</pre>
+<dl class="anatomy">
+<dt><code>`#${string}`</code></dt><dd>qualquer texto que comece com <code>#</code>.</dd>
+<dt><code>`${number}px`</code></dt><dd>um número seguido de <code>px</code>: <code>"320px"</code> e <code>"1.5px"</code> servem; <code>"abcpx"</code> não.</dd>
+</dl>
+<hr>
+<h2>2. Unions se multiplicam</h2>
+<p>Com unions dentro do template, o TypeScript gera <strong>todas as combinações</strong>:</p>
+
+<pre class="file" data-file="src/combina.ts">type Tamanho = "p" | "m" | "g";
+type Cor = "azul" | "preto";
+type Sku = `${Cor}-${Tamanho}`;
+
+const todos: Sku[] = ["azul-p", "azul-m", "azul-g", "preto-p", "preto-m", "preto-g"];
+console.log(todos.length, "combinações");
+
+const errado: Sku = "verde-p";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/combina.ts(8,7): error TS2322: Type '"verde-p"' is not assignable to type '"azul-g" | "azul-m" | "azul-p" | "preto-g" | "preto-m" | "preto-p"'.</pre>
+<p>A mensagem lista as 6 combinações: 2 cores × 3 tamanhos.</p>
+<hr>
+<h2>3. Mudando maiúsculas e minúsculas</h2>
+
+<pre class="file" data-file="src/caixa.ts">type Evento = "click" | "focus";
+type Handler = `on${Capitalize&lt;Evento&gt;}`;
+type Constante = Uppercase&lt;Evento&gt;;
+
+const h: Handler = "onClick";
+const k: Constante = "FOCUS";
+const l: Lowercase&lt;"OLÁ"&gt; = "olá";
+const u: Uncapitalize&lt;"Nome"&gt; = "nome";
+console.log(h, k, l, u);
+
+const errado: Handler = "onclick";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/caixa.ts(11,7): error TS2820: Type '"onclick"' is not assignable to type '"onClick" | "onFocus"'. Did you mean '"onClick"'?</pre>
+<p>Juntando com mapped types (aula anterior), você gera objetos inteiros com nomes derivados, como <code>onClick</code> e <code>onFocus</code>.</p>
+<hr>
+<h2>4. Extraindo partes com infer</h2>
+
+<pre class="file" data-file="src/extrair.ts">type Rota = "/usuarios/:id" | "/produtos/:codigo";
+type Param&lt;R&gt; = R extends `${string}/:${infer P}` ? P : never;
+
+const p1: Param&lt;"/usuarios/:id"&gt; = "id";
+const p2: Param&lt;Rota&gt; = "codigo";
+console.log(p1, p2);
+
+const p3: Param&lt;Rota&gt; = "nome";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/extrair.ts(8,7): error TS2322: Type '"nome"' is not assignable to type '"codigo" | "id"'.</pre>
+<p><code>Param&lt;Rota&gt;</code> virou <code>"id" | "codigo"</code>: o nome depois do <code>:</code> em cada rota.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Um texto montado em tempo de execução</strong>
+<p>Um texto comum (<code>string</code>) não é garantidamente <code>`#${string}`</code>, mesmo que você saiba que começa com <code>#</code>:</p>
+
+<pre class="file" data-file="src/montado.ts">type CorHex = `#${string}`;
+function pintar(c: CorHex) {
+  console.log("pintando", c);
+}
+let codigo = "ff0000";
+const cor = "#" + codigo;
+pintar(cor);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/montado.ts(7,8): error TS2345: Argument of type 'string' is not assignable to parameter of type '`#${string}`'.</pre>
+<p>A soma <code>"#" + codigo</code> é só <code>string</code> para o TypeScript. Use um template no valor: <code>const cor = `#${codigo}` as const;</code> ou anote <code>const cor: CorHex = `#${codigo}`;</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Aceita</th></tr>
+<tr><td><code>`#${string}`</code></td><td>texto que começa com <code>#</code></td></tr>
+<tr><td><code>`${number}px`</code></td><td>número + <code>px</code></td></tr>
+<tr><td><code>`${A}-${B}`</code></td><td>todas as combinações das unions</td></tr>
+<tr><td><code>Uppercase</code>, <code>Lowercase</code>, <code>Capitalize</code>, <code>Uncapitalize</code></td><td>mudam as letras</td></tr>
+<tr><td><code>R extends `${string}:${infer P}` ? P : never</code></td><td>extrai uma parte</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Prefixo</h3><p>Complete o tipo de um texto que começa com <code>@</code>:</p><div class="ex-code">type Usuario = `@${<input data-answer="string" aria-label="tipo">}`;</div></div>
+<div class="exercise"><h3>2. Primeira maiúscula</h3><p>Complete para gerar <code>"onSalvar"</code>:</p><div class="ex-code">type H = `on${<input data-answer="Capitalize" aria-label="utilitario">&lt;"salvar"&gt;}`;</div></div>
+<div class="exercise"><h3>3. Combinações</h3><p>Quantos textos diferentes cabem em <code>`${"a" | "b"}${"1" | "2" | "3"}`</code>?</p><div class="ex-code"><input data-answer="6" aria-label="numero"></div></div>
+<div class="mc" data-answer="4"><p class="mc-q">4. Qual valor <strong>não</strong> cabe em <code>`${number}px`</code>?</p>
+<label><input type="radio" name="q4"> <code>"10px"</code></label>
+<label><input type="radio" name="q4"> <code>"0.5px"</code></label>
+<label><input type="radio" name="q4"> <code>"-3px"</code></label>
+<label><input type="radio" name="q4"> <code>"dezpx"</code></label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. <code>Uppercase&lt;"sim"&gt;</code> é:</p>
+<label><input type="radio" name="q5"> <code>"SIM"</code></label>
+<label><input type="radio" name="q5"> <code>"Sim"</code></label>
+<label><input type="radio" name="q5"> <code>string</code></label>
+<label><input type="radio" name="q5"> <code>"sim"</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:`\$\{\s*Moeda\s*\}\s*\$\{\s*number\s*\}`|`\$\{\s*Moeda\s*\}\$\{\s*number\s*\}`;;semerro;;out:BRL10 USD2.5">
+<p class="try-task"><strong>Missão:</strong> crie <code>type Preco = `${Moeda}${number}`</code> (moeda seguida de número) para o código compilar. Saída esperada: <code>BRL10 USD2.5</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Moeda = "BRL" | "USD";
+type Preco = Moeda;
+const a: Preco = "BRL10";
+const b: Preco = "USD2.5";
+console.log(a, b);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Moeda = "BRL" | "USD";
+type Preco = `${Moeda}${number}`;
+const a: Preco = "BRL10";
+const b: Preco = "USD2.5";
+console.log(a, b);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+BRL10 USD2.5
+</pre>
+</div>
+<div class="trycmd" data-goal="src:Capitalize\s*&lt;;;semerro;;out:getNome getEmail">
+<p class="try-task"><strong>Missão:</strong> escreva <code>type Getter = `get${Capitalize&lt;Campo&gt;}`</code> para os nomes compilarem. Saída esperada: <code>getNome getEmail</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Campo = "nome" | "email";
+type Getter = `get${Campo}`;
+const g1: Getter = "getNome";
+const g2: Getter = "getEmail";
+console.log(g1, g2);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Campo = "nome" | "email";
+type Getter = `get${Capitalize&lt;Campo&gt;}`;
+const g1: Getter = "getNome";
+const g2: Getter = "getEmail";
+console.log(g1, g2);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+getNome getEmail
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Crases também funcionam em tipos: <code>`#${string}`</code>, <code>`${number}px`</code>.</li>
+<li>Unions dentro do template geram todas as combinações.</li>
+<li><code>Uppercase</code>, <code>Lowercase</code>, <code>Capitalize</code> e <code>Uncapitalize</code> mudam as letras.</li>
+<li><code>infer</code> extrai partes de um texto.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

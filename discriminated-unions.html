@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discriminated Unions — unions com etiqueta | Guia TypeScript</title>
+<meta name="description" content="Discriminated unions (unions discriminadas) em TypeScript: um campo etiqueta em comum, narrowing com switch, checagem de exaustividade com never e modelagem de estados, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Discriminated <span class="hl">Unions</span></h1>
+
+<p class="intro">Uma das ideias mais úteis do TypeScript: dar a cada variação de um tipo uma <strong>etiqueta</strong> (um campo como <code>tipo: "circulo"</code>). Com ela, um <code>switch</code> sabe exatamente com qual variação está lidando, e o compilador avisa se você esquecer algum caso.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Montar uma union com um campo etiqueta em comum.</li>
+<li>Fazer narrowing com <code>switch</code> e <code>if</code> pela etiqueta.</li>
+<li>Checagem de exaustividade com <code>never</code>.</li>
+<li>Modelar estados (carregando, sucesso, erro) sem campos “talvez”.</li>
+</ul></div>
+<hr>
+<h2>1. A etiqueta</h2>
+<pre class="file" data-file="src/formas.ts">type Circulo = { tipo: "circulo"; raio: number };
+type Retangulo = { tipo: "retangulo"; largura: number; altura: number };
+type Forma = Circulo | Retangulo;
+
+function area(f: Forma): number {
+  switch (f.tipo) {
+    case "circulo":
+      return Math.PI * f.raio ** 2;
+    case "retangulo":
+      return f.largura * f.altura;
+  }
+}
+
+console.log(area({ tipo: "circulo", raio: 1 }).toFixed(2));
+console.log(area({ tipo: "retangulo", largura: 3, altura: 4 }));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/formas.js
+3.14
+12</pre>
+<dl class="anatomy">
+<dt><code>tipo: "circulo"</code></dt><dd>a etiqueta: um campo com o <strong>mesmo nome</strong> em todas as variações e um <strong>literal diferente</strong> em cada uma.</dd>
+<dt><code>case "circulo":</code></dt><dd>aqui dentro, <code>f</code> é só <code>Circulo</code>: dá para ler <code>f.raio</code>.</dd>
+</dl>
+<p>Fora do <code>switch</code>, ler <code>f.raio</code> direto daria erro, porque um <code>Retangulo</code> não tem raio:</p>
+
+<pre class="file" data-file="src/sem-switch.ts">type Forma = { tipo: "circulo"; raio: number } | { tipo: "retangulo"; largura: number; altura: number };
+function raioDe(f: Forma) {
+  return f.raio;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-switch.ts(3,12): error TS2339: Property 'raio' does not exist on type 'Forma'.
+  Property 'raio' does not exist on type '{ tipo: "retangulo"; largura: number; altura: number; }'.</pre>
+<hr>
+<h2>2. Nenhum caso esquecido: never</h2>
+<p>Quando surge uma variação nova, é fácil esquecer de tratá-la. O truque: no <code>default</code>, guardar a variável num <code>never</code>. Se sobrar algum caso, ele não cabe em <code>never</code> e o compilador reclama:</p>
+
+<pre class="file" data-file="src/exaustivo.ts">type Forma =
+  | { tipo: "circulo"; raio: number }
+  | { tipo: "retangulo"; largura: number; altura: number }
+  | { tipo: "triangulo"; base: number; altura: number };
+
+function area(f: Forma): number {
+  switch (f.tipo) {
+    case "circulo":
+      return Math.PI * f.raio ** 2;
+    case "retangulo":
+      return f.largura * f.altura;
+    default:
+      const sobrou: never = f;
+      throw new Error("forma desconhecida: " + JSON.stringify(sobrou));
+  }
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/exaustivo.ts(13,13): error TS2322: Type '{ tipo: "triangulo"; base: number; altura: number; }' is not assignable to type 'never'.</pre>
+<p>O erro diz exatamente quem ficou de fora: o triângulo. Ao adicionar o <code>case "triangulo"</code>, o erro some.</p>
+<hr>
+<h2>3. Modelando estados</h2>
+<p>Em vez de um objeto cheio de campos opcionais (<code>dados?</code>, <code>erro?</code>, <code>carregando?</code>), cada estado traz só o que faz sentido para ele:</p>
+
+<pre class="file" data-file="src/estado.ts">type Estado =
+  | { status: "carregando" }
+  | { status: "sucesso"; dados: string[] }
+  | { status: "erro"; mensagem: string };
+
+function mostrar(e: Estado): string {
+  if (e.status === "carregando") return "Carregando...";
+  if (e.status === "erro") return "Falhou: " + e.mensagem;
+  return `${e.dados.length} itens: ${e.dados.join(", ")}`;
+}
+
+console.log(mostrar({ status: "carregando" }));
+console.log(mostrar({ status: "sucesso", dados: ["pão", "leite"] }));
+console.log(mostrar({ status: "erro", mensagem: "sem internet" }));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/estado.js
+Carregando...
+2 itens: pão, leite
+Falhou: sem internet</pre>
+<p>Depois dos dois <code>if</code>, só sobrou <code>"sucesso"</code>, então <code>e.dados</code> está liberado. E é impossível criar um estado de erro sem mensagem:</p>
+
+<pre class="file" data-file="src/invalido.ts">type Estado =
+  | { status: "carregando" }
+  | { status: "sucesso"; dados: string[] }
+  | { status: "erro"; mensagem: string };
+
+const e: Estado = { status: "erro" };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/invalido.ts(6,7): error TS2322: Type '{ status: "erro"; }' is not assignable to type 'Estado'.
+  Property 'mensagem' is missing in type '{ status: "erro"; }' but required in type '{ status: "erro"; mensagem: string; }'.</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Etiqueta com tipo string em vez de literal</strong>
+<p>Se a etiqueta for <code>string</code> em vez de um literal, o TypeScript não consegue separar as variações:</p>
+
+<pre class="file" data-file="src/etiqueta-fraca.ts">type Cachorro = { especie: string; late: boolean };
+type Gato = { especie: string; mia: boolean };
+
+function som(a: Cachorro | Gato) {
+  if (a.especie === "cachorro") {
+    return a.late;
+  }
+  return false;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/etiqueta-fraca.ts(6,14): error TS2339: Property 'late' does not exist on type 'Cachorro | Gato'.
+  Property 'late' does not exist on type 'Gato'.</pre>
+<p>A correção é usar literais: <code>especie: "cachorro"</code> e <code>especie: "gato"</code>.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Peça</th><th>Como</th></tr>
+<tr><td>etiqueta</td><td>mesmo campo, literal diferente: <code>tipo: "a"</code> / <code>tipo: "b"</code></td></tr>
+<tr><td>narrowing</td><td><code>switch (x.tipo)</code> ou <code>if (x.tipo === "a")</code></td></tr>
+<tr><td>exaustividade</td><td><code>default: const n: never = x;</code></td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. A etiqueta</h3><p>Complete a variação “quadrado” da forma:</p><div class="ex-code">type Quadrado = { tipo: <input data-answer="&quot;quadrado&quot;|'quadrado'" aria-label="literal">; lado: number };</div></div>
+<div class="exercise"><h3>2. Exaustividade</h3><p>Complete o tipo que pega casos esquecidos:</p><div class="ex-code">const sobrou: <input data-answer="never" aria-label="tipo"> = f;</div></div>
+<div class="exercise"><h3>3. Separar</h3><p>Complete o comando que separa os casos pela etiqueta:</p><div class="ex-code"><input data-answer="switch" aria-label="comando"> (f.tipo) { … }</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Para ser uma boa etiqueta, o campo deve ter…</p>
+<label><input type="radio" name="q4"> …tipo <code>string</code> em todas as variações</label>
+<label><input type="radio" name="q4"> …o mesmo nome e um literal diferente em cada variação</label>
+<label><input type="radio" name="q4"> …nomes diferentes em cada variação</label>
+<label><input type="radio" name="q4"> …tipo <code>boolean</code></label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. O que o <code>const n: never = f</code> no <code>default</code> faz quando surge uma variação nova não tratada?</p>
+<label><input type="radio" name="q5"> Trata a variação sozinho</label>
+<label><input type="radio" name="q5"> Nada</label>
+<label><input type="radio" name="q5"> Gera um erro de compilação apontando a variação esquecida</label>
+<label><input type="radio" name="q5"> Transforma a variação em <code>any</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:case\s+&quot;triangulo&quot;;;semerro;;out:3.14;;out:12;;out:10">
+<p class="try-task"><strong>Missão:</strong> o triângulo foi adicionado, mas a função não trata ele (o <code>never</code> acusa). Adicione o <code>case "triangulo"</code> (área = base × altura / 2). Saída esperada: <code>3.14</code>, <code>12</code> e <code>10</code>, uma por linha.</p>
+<pre class="script" data-file="src/missao.ts">
+type Forma =
+  | { tipo: "circulo"; raio: number }
+  | { tipo: "retangulo"; largura: number; altura: number }
+  | { tipo: "triangulo"; base: number; altura: number };
+
+function area(f: Forma): number {
+  switch (f.tipo) {
+    case "circulo":
+      return Math.PI * f.raio ** 2;
+    case "retangulo":
+      return f.largura * f.altura;
+    default:
+      const sobrou: never = f;
+      throw new Error("forma desconhecida: " + JSON.stringify(sobrou));
+  }
+}
+console.log(area({ tipo: "circulo", raio: 1 }).toFixed(2));
+console.log(area({ tipo: "retangulo", largura: 3, altura: 4 }));
+console.log(area({ tipo: "triangulo", base: 4, altura: 5 }));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Forma =
+  | { tipo: "circulo"; raio: number }
+  | { tipo: "retangulo"; largura: number; altura: number }
+  | { tipo: "triangulo"; base: number; altura: number };
+
+function area(f: Forma): number {
+  switch (f.tipo) {
+    case "circulo":
+      return Math.PI * f.raio ** 2;
+    case "retangulo":
+      return f.largura * f.altura;
+    case "triangulo":
+      return (f.base * f.altura) / 2;
+    default:
+      const sobrou: never = f;
+      throw new Error("forma desconhecida: " + JSON.stringify(sobrou));
+  }
+}
+console.log(area({ tipo: "circulo", raio: 1 }).toFixed(2));
+console.log(area({ tipo: "retangulo", largura: 3, altura: 4 }));
+console.log(area({ tipo: "triangulo", base: 4, altura: 5 }));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+3.14
+12
+10
+</pre>
+</div>
+<div class="trycmd" data-goal="src:\|\s*\{\s*status\s*:\s*&quot;(pago|pendente)&quot;;;semerro;;out:Pago em 21/11;;out:Vence em 30/11">
+<p class="try-task"><strong>Missão:</strong> crie a union <code>Fatura</code> com duas variações: <code>{ status: "pago"; pagoEm: string }</code> e <code>{ status: "pendente"; vence: string }</code>. Saída esperada: <code>Pago em 21/11</code> e <code>Vence em 30/11</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Fatura = { status: string; pagoEm?: string; vence?: string };
+
+function texto(f: Fatura): string {
+  if (f.status === "pago") return "Pago em " + f.pagoEm;
+  return "Vence em " + f.vence;
+}
+console.log(texto({ status: "pago", pagoEm: "21/11" }));
+console.log(texto({ status: "pendente", vence: "30/11" }));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Fatura =
+  | { status: "pago"; pagoEm: string }
+  | { status: "pendente"; vence: string };
+
+function texto(f: Fatura): string {
+  if (f.status === "pago") return "Pago em " + f.pagoEm;
+  return "Vence em " + f.vence;
+}
+console.log(texto({ status: "pago", pagoEm: "21/11" }));
+console.log(texto({ status: "pendente", vence: "30/11" }));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Pago em 21/11
+Vence em 30/11
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Uma etiqueta (mesmo campo, literal diferente) separa as variações de uma union.</li>
+<li><code>switch</code>/<code>if</code> pela etiqueta faz o narrowing.</li>
+<li><code>const n: never = x</code> no <code>default</code> acusa casos esquecidos.</li>
+<li>Estados com etiqueta evitam campos opcionais confusos.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>infer — extraindo tipos de dentro de outros tipos | Guia TypeScript</title>
+<meta name="description" content="A palavra infer nos conditional types do TypeScript: extrair o tipo de retorno, dos parâmetros, de dentro de arrays e de Promises, e como ReturnType e Awaited funcionam, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>A palavra <span class="hl">infer</span></h1>
+
+<p class="intro">Os conditional types perguntam “<code>T</code> tem esta forma?”. Com <code>infer</code>, eles também <strong>capturam um pedaço</strong> dessa forma: “se <code>T</code> for uma lista de alguma coisa, me diga <em>que coisa</em>”. É o mecanismo por trás do <code>ReturnType</code>, do <code>Parameters</code> e do <code>Awaited</code>.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A sintaxe <code>T extends Forma&lt;infer X&gt; ? X : …</code>.</li>
+<li>Extrair o item de uma lista e o valor de uma Promise.</li>
+<li>Escrever o seu próprio <code>ReturnType</code>.</li>
+<li>Usar <code>Awaited</code>, <code>ReturnType</code> e <code>Parameters</code> no dia a dia.</li>
+</ul></div>
+<hr>
+<h2>1. Capturando o item de uma lista</h2>
+<pre class="file" data-file="src/item.ts">type ItemDe&lt;T&gt; = T extends (infer I)[] ? I : never;
+
+const a: ItemDe&lt;string[]&gt; = "texto";
+const b: ItemDe&lt;number[]&gt; = 42;
+const c: ItemDe&lt;boolean&gt; = true;
+console.log(a, b);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/item.ts(5,7): error TS2322: Type 'true' is not assignable to type 'never'.</pre>
+<dl class="anatomy">
+<dt><code>T extends (infer I)[]</code></dt><dd>“<code>T</code> é uma lista de algo? Chame esse algo de <code>I</code>”.</dd>
+<dt><code>? I : never</code></dt><dd>se for, o resultado é o item; se não for (como <code>boolean</code>), <code>never</code>, que não aceita valor nenhum.</dd>
+</dl>
+<hr>
+<h2>2. O valor de dentro de uma Promise</h2>
+
+<pre class="file" data-file="src/promessa.ts">type Desembrulha&lt;T&gt; = T extends Promise&lt;infer V&gt; ? V : T;
+
+async function buscarIdade(): Promise&lt;number&gt; {
+  return 30;
+}
+
+const idade: Desembrulha&lt;ReturnType&lt;typeof buscarIdade&gt;&gt; = 30;
+const nome: Desembrulha&lt;string&gt; = "Ana";
+const pronto: Awaited&lt;Promise&lt;Promise&lt;boolean&gt;&gt;&gt; = true;
+console.log(idade, nome, pronto);
+
+const errado: Desembrulha&lt;Promise&lt;number&gt;&gt; = "trinta";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/promessa.ts(12,7): error TS2322: Type 'string' is not assignable to type 'number'.</pre>
+<p><code>Awaited</code> é a versão pronta (e mais completa) disso: ela desembrulha até Promises dentro de Promises.</p>
+<hr>
+<h2>3. O seu próprio ReturnType</h2>
+<p>O <code>infer</code> pode aparecer em qualquer lugar da forma, inclusive no retorno de uma função:</p>
+
+<pre class="file" data-file="src/retorno.ts">type Retorno&lt;F&gt; = F extends (...args: any[]) =&gt; infer R ? R : never;
+type PrimeiroParam&lt;F&gt; = F extends (primeiro: infer P, ...resto: any[]) =&gt; any ? P : never;
+
+function criarUsuario(nome: string, idade: number) {
+  return { nome, idade, criadoEm: "2026-11-21" };
+}
+
+type Usuario = Retorno&lt;typeof criarUsuario&gt;;
+type Nome = PrimeiroParam&lt;typeof criarUsuario&gt;;
+
+const u: Usuario = criarUsuario("Ana", 30);
+const n: Nome = "Caio";
+console.log(u, n);
+
+const faltando: Usuario = { nome: "Duda", idade: 25 };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/retorno.ts(15,7): error TS2741: Property 'criadoEm' is missing in type '{ nome: string; idade: number; }' but required in type '{ nome: string; idade: number; criadoEm: string; }'.</pre>
+<p>O tipo <code>Usuario</code> nasceu da função: se a função mudar, o tipo muda junto. É a mesma ideia do <code>ReturnType</code> e do <code>Parameters</code> prontos.</p>
+<hr>
+<h2>4. Com os utilitários prontos</h2>
+
+<pre class="file" data-file="src/prontos.ts">async function carregarConfig(caminho: string, tentativas: number) {
+  return { caminho, tentativas, tema: "escuro" as const };
+}
+
+type Args = Parameters&lt;typeof carregarConfig&gt;;
+type Config = Awaited&lt;ReturnType&lt;typeof carregarConfig&gt;&gt;;
+
+const args: Args = ["/etc/app.json", 3];
+const cfg: Config = await carregarConfig(...args);
+console.log(cfg.tema, cfg.tentativas);
+
+const argsErrados: Args = ["/etc/app.json"];</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/prontos.ts(12,7): error TS2322: Type '[string]' is not assignable to type '[caminho: string, tentativas: number]'.
+  Source has 1 element(s) but target requires 2.</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>infer fora de um conditional type</strong>
+
+<pre class="file" data-file="src/solto.ts">type Item = (infer I)[];</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/solto.ts(1,14): error TS1338: 'infer' declarations are only permitted in the 'extends' clause of a conditional type.</pre>
+<p><code>infer</code> só existe na parte <code>extends</code> de um conditional type.</p>
+</div>
+<div class="cenario"><strong>typeof esquecido</strong>
+
+<pre class="file" data-file="src/sem-typeof.ts">function dobro(n: number) {
+  return n * 2;
+}
+type R = ReturnType&lt;dobro&gt;;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/sem-typeof.ts(4,21): error TS2749: 'dobro' refers to a value, but is being used as a type here. Did you mean 'typeof dobro'?</pre>
+<p><code>dobro</code> é um <strong>valor</strong> (uma função); utilitários de tipo recebem <strong>tipos</strong>. Use <code>ReturnType&lt;typeof dobro&gt;</code>, como a própria mensagem sugere.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Extrai</th></tr>
+<tr><td><code>T extends (infer I)[] ? I : never</code></td><td>o item da lista</td></tr>
+<tr><td><code>T extends Promise&lt;infer V&gt; ? V : T</code></td><td>o valor da Promise</td></tr>
+<tr><td><code>F extends (...a: any[]) =&gt; infer R ? R : never</code></td><td>o retorno da função</td></tr>
+<tr><td><code>ReturnType&lt;typeof f&gt;</code>, <code>Parameters&lt;typeof f&gt;</code></td><td>prontos</td></tr>
+<tr><td><code>Awaited&lt;T&gt;</code></td><td>desembrulha Promises</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Capturar</h3><p>Complete:</p><div class="ex-code">type ItemDe&lt;T&gt; = T extends (<input data-answer="infer" aria-label="palavra"> I)[] ? I : never;</div></div>
+<div class="exercise"><h3>2. Desembrulhar</h3><p>Qual utilitário pronto tira o valor de dentro de uma <code>Promise</code>?</p><div class="ex-code"><input data-answer="Awaited" aria-label="tipo">&lt;Promise&lt;number&gt;&gt;</div></div>
+<div class="exercise"><h3>3. De valor para tipo</h3><p>Complete:</p><div class="ex-code">type R = ReturnType&lt;<input data-answer="typeof" aria-label="palavra"> dobro&gt;;</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Onde o <code>infer</code> pode ser usado?</p>
+<label><input type="radio" name="q4"> Em qualquer anotação de variável</label>
+<label><input type="radio" name="q4"> Só dentro de funções</label>
+<label><input type="radio" name="q4"> Na parte <code>extends</code> de um conditional type</label>
+<label><input type="radio" name="q4"> Só em interfaces</label></div>
+<div class="mc" data-answer="2"><p class="mc-q">5. O que <code>ItemDe&lt;boolean&gt;</code> (da seção 1) resulta?</p>
+<label><input type="radio" name="q5"> <code>boolean</code></label>
+<label><input type="radio" name="q5"> <code>never</code></label>
+<label><input type="radio" name="q5"> <code>boolean[]</code></label>
+<label><input type="radio" name="q5"> <code>unknown</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:infer\s+\w+;;semerro;;out:Ana tem 30 anos">
+<p class="try-task"><strong>Missão:</strong> escreva <code>PrimeiroDa&lt;T&gt;</code> com <code>infer</code>, que extrai o tipo do primeiro item de uma tupla (<code>T extends [infer P, ...any[]] ? P : never</code>). Saída esperada: <code>Ana tem 30 anos</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type PrimeiroDa&lt;T&gt; = unknown;
+type Registro = [string, number];
+const quem: PrimeiroDa&lt;Registro&gt; = "Ana";
+console.log(quem.toString() + " tem 30 anos");
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type PrimeiroDa&lt;T&gt; = T extends [infer P, ...any[]] ? P : never;
+type Registro = [string, number];
+const quem: PrimeiroDa&lt;Registro&gt; = "Ana";
+console.log(quem.toString() + " tem 30 anos");
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Ana tem 30 anos
+</pre>
+</div>
+<div class="trycmd" data-goal="src:Awaited\s*&lt;\s*ReturnType\s*&lt;\s*typeof\s+buscarPedido\s*&gt;\s*&gt;;;semerro;;out:Pedido 12: 3 itens">
+<p class="try-task"><strong>Missão:</strong> sem reescrever o formato à mão, crie <code>type Pedido = Awaited&lt;ReturnType&lt;typeof buscarPedido&gt;&gt;</code> e use-o na função <code>resumo</code>. Saída esperada: <code>Pedido 12: 3 itens</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+async function buscarPedido() {
+  return { id: 12, itens: ["a", "b", "c"] };
+}
+function resumo(p: any): string {
+  return `Pedido ${p.id}: ${p.itens.length} itens`;
+}
+console.log(resumo(await buscarPedido()));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+async function buscarPedido() {
+  return { id: 12, itens: ["a", "b", "c"] };
+}
+type Pedido = Awaited&lt;ReturnType&lt;typeof buscarPedido&gt;&gt;;
+function resumo(p: Pedido): string {
+  return `Pedido ${p.id}: ${p.itens.length} itens`;
+}
+console.log(resumo(await buscarPedido()));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Pedido 12: 3 itens
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>infer X</code> captura um pedaço do tipo dentro de um <code>extends</code>.</li>
+<li>Serve para pegar item de lista, valor de Promise, retorno e parâmetros de funções.</li>
+<li><code>ReturnType</code>, <code>Parameters</code> e <code>Awaited</code> são feitos com <code>infer</code>.</li>
+<li>Para usar uma função como tipo, passe <code>typeof funcao</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

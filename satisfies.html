@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O operador satisfies | Guia TypeScript</title>
+<meta name="description" content="O operador satisfies do TypeScript: conferir um valor contra um tipo sem perder o tipo exato inferido, comparação com anotação e com as, uso com Record e as const, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>O operador <span class="hl">satisfies</span></h1>
+
+<p class="intro">Anotar uma variável (<code>const x: Tipo = …</code>) confere o valor, mas faz a variável “esquecer” os detalhes e ficar só com o <code>Tipo</code>. Não anotar guarda os detalhes, mas não confere nada. O <code>satisfies</code> faz as duas coisas: <strong>confere</strong> o valor e <strong>mantém</strong> o tipo exato que o TypeScript inferiu.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>A diferença entre anotar e usar <code>satisfies</code>.</li>
+<li>Por que <code>satisfies</code> é mais seguro que <code>as</code>.</li>
+<li>Combinar com <code>Record</code> e <code>as const</code>.</li>
+</ul></div>
+<hr>
+<h2>1. Anotação apaga detalhes</h2>
+<pre class="file" data-file="src/anotacao.ts">type Cores = Record&lt;string, string | number[]&gt;;
+
+const paleta: Cores = {
+  primaria: "#3366ff",
+  fundo: [255, 255, 255],
+};
+
+console.log(paleta.primaria.toUpperCase());
+console.log(paleta.fundo.map((c) =&gt; c / 255));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/anotacao.ts(8,13): error TS18048: 'paleta.primaria' is possibly 'undefined'.
+src/anotacao.ts(8,29): error TS2339: Property 'toUpperCase' does not exist on type 'string | number[]'.
+  Property 'toUpperCase' does not exist on type 'number[]'.
+src/anotacao.ts(9,13): error TS18048: 'paleta.fundo' is possibly 'undefined'.
+src/anotacao.ts(9,26): error TS2339: Property 'map' does not exist on type 'string | number[]'.
+  Property 'map' does not exist on type 'string'.
+src/anotacao.ts(9,31): error TS7006: Parameter 'c' implicitly has an 'any' type.</pre>
+<p>Com a anotação <code>: Cores</code>, cada campo virou <code>string | number[]</code> (e o <code>noUncheckedIndexedAccess</code> ainda soma <code>undefined</code>, porque o <code>Record&lt;string, …&gt;</code> aceita qualquer chave). O TypeScript esqueceu que <code>primaria</code> é texto e <code>fundo</code> é lista.</p>
+<hr>
+<h2>2. satisfies confere e mantém</h2>
+
+<pre class="file" data-file="src/satisfies.ts">type Cores = Record&lt;string, string | number[]&gt;;
+
+const paleta = {
+  primaria: "#3366ff",
+  fundo: [255, 255, 255],
+} satisfies Cores;
+
+console.log(paleta.primaria.toUpperCase());
+console.log(paleta.fundo.map((c) =&gt; c / 255));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/satisfies.js
+#3366FF
+[ 1, 1, 1 ]</pre>
+<p>O objeto foi conferido contra <code>Cores</code>, mas <code>paleta.primaria</code> continua <code>string</code> e <code>paleta.fundo</code> continua <code>number[]</code>. E erros continuam sendo pegos:</p>
+
+<pre class="file" data-file="src/satisfies-erro.ts">type Cores = Record&lt;string, string | number[]&gt;;
+
+const paleta = {
+  primaria: "#3366ff",
+  borda: true,
+} satisfies Cores;
+
+console.log(paleta.sombra);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/satisfies-erro.ts(5,3): error TS2322: Type 'boolean' is not assignable to type 'string | number[]'.
+src/satisfies-erro.ts(8,20): error TS2339: Property 'sombra' does not exist on type '{ primaria: string; borda: boolean; }'.</pre>
+<p>Dois ganhos: o valor errado (<code>true</code>) foi recusado, e acessar uma chave que não existe (<code>sombra</code>) também, porque o tipo da variável é o objeto exato.</p>
+<hr>
+<h2>3. satisfies x as</h2>
+<p>O <code>as</code> <strong>manda</strong> o compilador acreditar; o <code>satisfies</code> <strong>pede para conferir</strong>:</p>
+
+<pre class="file" data-file="src/as.ts">type Usuario = { nome: string; idade: number };
+
+const a = { nome: "Ana" } as Usuario;
+const b = { nome: "Caio" } satisfies Usuario;
+console.log(a, b);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/as.ts(4,28): error TS2741: Property 'idade' is missing in type '{ nome: string; }' but required in type 'Usuario'.</pre>
+<p>O <code>as</code> deixou passar um usuário sem idade. O <code>satisfies</code> pegou.</p>
+<hr>
+<h2>4. Com as const: chaves e valores exatos</h2>
+
+<pre class="file" data-file="src/as-const.ts">type Rotas = Record&lt;string, `/${string}`&gt;;
+
+const rotas = {
+  inicio: "/",
+  perfil: "/perfil",
+  ajuda: "/ajuda",
+} as const satisfies Rotas;
+
+type NomeRota = keyof typeof rotas;
+const ir: NomeRota = "perfil";
+console.log(ir, "-&gt;", rotas[ir]);
+
+const errada: NomeRota = "contato";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/as-const.ts(13,7): error TS2322: Type '"contato"' is not assignable to type '"ajuda" | "inicio" | "perfil"'.</pre>
+<p><code>as const satisfies Rotas</code>: os valores são conferidos (todo caminho começa com <code>/</code>) e as chaves exatas viram um tipo útil (<code>NomeRota</code>).</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Propriedade a mais</strong>
+
+<pre class="file" data-file="src/a-mais.ts">type Config = { porta: number; host: string };
+
+const cfg = {
+  porta: 8080,
+  host: "localhost",
+  debug: true,
+} satisfies Config;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/a-mais.ts(6,3): error TS2353: Object literal may only specify known properties, and 'debug' does not exist in type 'Config'.</pre>
+<p>Como na anotação, um objeto escrito na hora não pode ter campos que o tipo desconhece. Adicione <code>debug</code> ao tipo ou remova do objeto.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Forma</th><th>Confere?</th><th>Tipo da variável</th></tr>
+<tr><td><code>const x: T = v</code></td><td>sim</td><td><code>T</code></td></tr>
+<tr><td><code>const x = v satisfies T</code></td><td>sim</td><td>o tipo exato de <code>v</code></td></tr>
+<tr><td><code>const x = v as T</code></td><td>quase nada</td><td><code>T</code></td></tr>
+<tr><td><code>v as const satisfies T</code></td><td>sim</td><td>literal exato e somente leitura</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. A palavra</h3><p>Complete para conferir o objeto contra <code>Config</code> sem perder o tipo exato:</p><div class="ex-code">const cfg = { porta: 80 } <input data-answer="satisfies" aria-label="palavra"> Config;</div></div>
+<div class="exercise"><h3>2. Ordem</h3><p>Complete na ordem certa:</p><div class="ex-code">const rotas = { … } as <input data-answer="const" aria-label="palavra"> satisfies Rotas;</div></div>
+<div class="exercise"><h3>3. Qual não confere?</h3><p>Qual das três formas (anotação, satisfies, as) praticamente não confere o valor? Escreva a palavra-chave.</p><div class="ex-code"><input data-answer="as" aria-label="palavra"></div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Com <code>const p = { cor: "azul" } satisfies Record&lt;string, string&gt;</code>, qual é o tipo de <code>p.cor</code>?</p>
+<label><input type="radio" name="q4"> <code>string | undefined</code></label>
+<label><input type="radio" name="q4"> <code>string</code></label>
+<label><input type="radio" name="q4"> <code>any</code></label>
+<label><input type="radio" name="q4"> <code>Record&lt;string, string&gt;</code></label></div>
+<div class="mc" data-answer="3"><p class="mc-q">5. <code>{ nome: "Caio" } satisfies { nome: string; idade: number }</code>…</p>
+<label><input type="radio" name="q5"> …compila, pois <code>satisfies</code> ignora campos</label>
+<label><input type="radio" name="q5"> …vira <code>any</code></label>
+<label><input type="radio" name="q5"> …dá erro: falta <code>idade</code></label>
+<label><input type="radio" name="q5"> …compila e põe <code>idade: 0</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:\}\s*satisfies\s+Precos;;semerro;;out:CAFÉ 6.50">
+<p class="try-task"><strong>Missão:</strong> troque a anotação <code>: Precos</code> por <code>satisfies Precos</code> para o código compilar. Saída esperada: <code>CAFÉ 6.50</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Precos = Record&lt;string, string | number&gt;;
+const cardapio: Precos = {
+  nome: "café",
+  valor: 6.5,
+};
+console.log(cardapio.nome.toUpperCase(), cardapio.valor.toFixed(2));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Precos = Record&lt;string, string | number&gt;;
+const cardapio = {
+  nome: "café",
+  valor: 6.5,
+} satisfies Precos;
+console.log(cardapio.nome.toUpperCase(), cardapio.valor.toFixed(2));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+CAFÉ 6.50
+</pre>
+</div>
+<div class="trycmd" data-goal="src:satisfies\s+Produto;;src:estoque\s*:\s*\d+;;semerro;;out:Caneta: 40 em estoque">
+<p class="try-task"><strong>Missão:</strong> o <code>as</code> está escondendo um campo faltando. Troque por <code>satisfies Produto</code>, leia o erro e complete o objeto com <code>estoque: 40</code>. Saída esperada: <code>Caneta: 40 em estoque</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Produto = { nome: string; estoque: number };
+const p = { nome: "Caneta" } as Produto;
+console.log(`${p.nome}: ${p.estoque} em estoque`);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Produto = { nome: string; estoque: number };
+const p = { nome: "Caneta", estoque: 40 } satisfies Produto;
+console.log(`${p.nome}: ${p.estoque} em estoque`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Caneta: 40 em estoque
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>satisfies</code> confere o valor e mantém o tipo exato inferido.</li>
+<li>Anotação confere, mas generaliza; <code>as</code> quase não confere.</li>
+<li><code>as const satisfies T</code> dá valores exatos conferidos.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

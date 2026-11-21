@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sobrecarga de funções (overloads) | Guia TypeScript</title>
+<meta name="description" content="Sobrecarga de funções em TypeScript: várias assinaturas para a mesma função, a assinatura de implementação, ordem das sobrecargas, sobrecarga em métodos e quando preferir union, com saídas e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Sobrecarga</span> de funções</h1>
+
+<p class="intro">Algumas funções aceitam entradas diferentes e devolvem coisas diferentes conforme a entrada. Uma union no parâmetro e no retorno perde essa ligação (“se entrar texto, sai texto”). Com <strong>sobrecargas</strong> (<em>overloads</em>), você escreve várias assinaturas para a mesma função, e o TypeScript escolhe a certa a cada chamada.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li>Escrever assinaturas de sobrecarga e a implementação.</li>
+<li>Por que a implementação não pode ser chamada diretamente.</li>
+<li>A ordem das sobrecargas.</li>
+<li>Quando uma union simples é melhor.</li>
+</ul></div>
+<hr>
+<h2>1. O problema com union</h2>
+<pre class="file" data-file="src/union.ts">function inverter(v: string | number[]): string | number[] {
+  return typeof v === "string" ? v.split("").reverse().join("") : [...v].reverse();
+}
+
+const t = inverter("abc");
+console.log(t.toUpperCase());</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/union.ts(6,15): error TS2339: Property 'toUpperCase' does not exist on type 'string | number[]'.
+  Property 'toUpperCase' does not exist on type 'number[]'.</pre>
+<p>Você passou texto e sabe que volta texto, mas o tipo de retorno é a union inteira.</p>
+<hr>
+<h2>2. Assinaturas de sobrecarga</h2>
+
+<pre class="file" data-file="src/sobrecarga.ts">function inverter(v: string): string;
+function inverter(v: number[]): number[];
+function inverter(v: string | number[]): string | number[] {
+  return typeof v === "string" ? v.split("").reverse().join("") : [...v].reverse();
+}
+
+const t = inverter("abc");
+const n = inverter([1, 2, 3]);
+console.log(t.toUpperCase(), n.map((x) =&gt; x * 10));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/sobrecarga.js
+CBA [ 30, 20, 10 ]</pre>
+<dl class="anatomy">
+<dt>as duas primeiras linhas</dt><dd>as <strong>assinaturas</strong> que quem chama enxerga: texto → texto; lista → lista. Sem corpo, terminadas em <code>;</code>.</dd>
+<dt>a terceira</dt><dd>a <strong>implementação</strong>: tem o corpo e precisa aceitar todos os casos. Ela não aparece para quem chama.</dd>
+</dl>
+<hr>
+<h2>3. Só as sobrecargas valem para quem chama</h2>
+
+<pre class="file" data-file="src/chamadas.ts">function inverter(v: string): string;
+function inverter(v: number[]): number[];
+function inverter(v: string | number[]): string | number[] {
+  return typeof v === "string" ? v.split("").reverse().join("") : [...v].reverse();
+}
+
+const talvez: string | number[] = Math.random() &gt; 2 ? "x" : [1];
+inverter(talvez);
+inverter(true);</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/chamadas.ts(8,10): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'string | number[]' is not assignable to parameter of type 'number[]'.
+      Type 'string' is not assignable to type 'number[]'.
+src/chamadas.ts(9,10): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'boolean' is not assignable to parameter of type 'number[]'.</pre>
+<p>Mesmo que a implementação aceite <code>string | number[]</code>, nenhuma sobrecarga aceita a union, então a chamada é recusada. Se você quer permitir, adicione uma terceira sobrecarga <code>function inverter(v: string | number[]): string | number[];</code>.</p>
+<hr>
+<h2>4. Sobrecarga em métodos e a ordem</h2>
+<p>As sobrecargas são testadas <strong>de cima para baixo</strong>, e vale a primeira que servir. Coloque as mais específicas primeiro:</p>
+
+<pre class="file" data-file="src/metodo.ts">class Formatador {
+  formatar(v: Date): string;
+  formatar(v: number, casas?: number): string;
+  formatar(v: Date | number, casas = 2): string {
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return v.toFixed(casas);
+  }
+}
+
+const f = new Formatador();
+console.log(f.formatar(new Date("2026-11-21T12:00:00Z")));
+console.log(f.formatar(3.14159));
+console.log(f.formatar(3.14159, 4));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/metodo.js
+2026-11-21
+3.14
+3.1416</pre>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Implementação que não cobre uma sobrecarga</strong>
+
+<pre class="file" data-file="src/incompativel.ts">function dobro(v: string): string;
+function dobro(v: number): number;
+function dobro(v: number): number {
+  return v * 2;
+}</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/incompativel.ts(1,10): error TS2394: This overload signature is not compatible with its implementation signature.</pre>
+<p>A implementação precisa aceitar todos os tipos das sobrecargas: aqui, <code>v: string | number</code>.</p>
+</div>
+<div class="tip"><strong>Union ou sobrecarga?</strong><p>Se o retorno <strong>não</strong> depende do tipo da entrada (ex.: <code>tamanho(v: string | unknown[]): number</code>), prefira uma union simples. Sobrecarga é para quando a entrada decide o tipo da saída.</p></div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Parte</th><th>Forma</th></tr>
+<tr><td>sobrecarga</td><td><code>function f(x: A): RA;</code> (sem corpo)</td></tr>
+<tr><td>implementação</td><td><code>function f(x: A | B): RA | RB { … }</code></td></tr>
+<tr><td>ordem</td><td>da mais específica para a mais geral</td></tr>
+<tr><td>em classes</td><td>mesma ideia, com métodos</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Final da assinatura</h3><p>Com que caractere termina uma assinatura de sobrecarga (sem corpo)?</p><div class="ex-code">function f(x: string): string<input data-answer=";" aria-label="caractere"></div></div>
+<div class="exercise"><h3>2. Implementação</h3><p>Complete o tipo do parâmetro da implementação que cobre <code>f(x: string)</code> e <code>f(x: number)</code>:</p><div class="ex-code">function f(x: <input data-answer="string | number|number | string" aria-label="tipo">) { … }</div></div>
+<div class="exercise"><h3>3. Quem enxerga</h3><p>A assinatura da implementação é visível para quem chama? (sim/não)</p><div class="ex-code"><input data-answer="não|nao" aria-label="resposta"></div></div>
+<div class="mc" data-answer="1"><p class="mc-q">4. Em que ordem as sobrecargas são testadas?</p>
+<label><input type="radio" name="q4"> De cima para baixo; vale a primeira que servir</label>
+<label><input type="radio" name="q4"> De baixo para cima</label>
+<label><input type="radio" name="q4"> A mais longa primeiro</label>
+<label><input type="radio" name="q4"> Em ordem alfabética</label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. Quando preferir uma union simples à sobrecarga?</p>
+<label><input type="radio" name="q5"> Sempre que houver mais de um parâmetro</label>
+<label><input type="radio" name="q5"> Quando a função é <code>async</code></label>
+<label><input type="radio" name="q5"> Nunca</label>
+<label><input type="radio" name="q5"> Quando o retorno não depende do tipo da entrada</label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:function\s+primeiro\s*\(\s*\w+\s*:\s*string\s*\)\s*:\s*string\s*[;];;src:function\s+primeiro\s*\(\s*\w+\s*:\s*number\[\]\s*\)\s*:\s*number\s*[;];;semerro;;out:A 10">
+<p class="try-task"><strong>Missão:</strong> adicione duas sobrecargas a <code>primeiro</code>: <code>(v: string): string</code> e <code>(v: number[]): number</code>, para que o código compile. Saída esperada: <code>A 10</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function primeiro(v: string | number[]): string | number {
+  return typeof v === "string" ? v.charAt(0) : (v[0] ?? 0);
+}
+const letra = primeiro("Ana");
+const num = primeiro([5, 7]);
+console.log(letra.toUpperCase(), num * 2);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function primeiro(v: string): string;
+function primeiro(v: number[]): number;
+function primeiro(v: string | number[]): string | number {
+  return typeof v === "string" ? v.charAt(0) : (v[0] ?? 0);
+}
+const letra = primeiro("Ana");
+const num = primeiro([5, 7]);
+console.log(letra.toUpperCase(), num * 2);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+A 10
+</pre>
+</div>
+<div class="trycmd" data-goal="src:v\s*:\s*(string\s*\|\s*number|number\s*\|\s*string);;semerro;;out:abcabc 8">
+<p class="try-task"><strong>Missão:</strong> a implementação de <code>dobro</code> não cobre a sobrecarga de texto. Corrija a implementação (parâmetro <code>string | number</code>; texto se repete com <code>.repeat(2)</code>). Saída esperada: <code>abcabc 8</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+function dobro(v: string): string;
+function dobro(v: number): number;
+function dobro(v: number): number {
+  return v * 2;
+}
+console.log(dobro("abc"), dobro(4));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+function dobro(v: string): string;
+function dobro(v: number): number;
+function dobro(v: string | number): string | number {
+  return typeof v === "string" ? v.repeat(2) : v * 2;
+}
+console.log(dobro("abc"), dobro(4));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+abcabc 8
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Sobrecargas ligam o tipo da entrada ao tipo da saída.</li>
+<li>Assinaturas sem corpo em cima; uma implementação que cobre todas embaixo.</li>
+<li>Quem chama só vê as sobrecargas, testadas de cima para baixo.</li>
+<li>Se o retorno não muda com a entrada, use union.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
