@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>keyof e typeof — tipos a partir de chaves e de valores | Guia TypeScript</title>
+<meta name="description" content="Os operadores de tipo keyof e typeof em TypeScript: a união das chaves de um tipo, o tipo de uma variável, tipos de acesso indexado T[&quot;campo&quot;] e a combinação keyof typeof com objetos as const.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">keyof</span> e typeof</h1>
+
+<p class="intro">Dois operadores fazem o TypeScript <strong>tirar tipos de coisas que já existem</strong>. O <code>keyof</code> pega as <strong>chaves</strong> de um tipo; o <code>typeof</code> (usado num lugar de tipo) pega o <strong>tipo de uma variável</strong>. Juntos, eles evitam escrever a mesma informação duas vezes.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li><code>keyof T</code>: a união dos nomes das propriedades.</li>
+<li><code>typeof x</code> em posição de tipo.</li>
+<li>Acesso indexado: <code>T["campo"]</code> e <code>T[keyof T]</code>.</li>
+<li>O trio <code>keyof typeof</code> com objetos <code>as const</code>.</li>
+</ul></div>
+<hr>
+<h2>1. keyof: as chaves de um tipo</h2>
+<pre class="file" data-file="src/keyof.ts">type Produto = { nome: string; preco: number; estoque: number };
+type Campo = keyof Produto;
+
+function ordenarPor(lista: Produto[], campo: Campo): Produto[] {
+  return [...lista].sort((a, b) =&gt; (a[campo] &gt; b[campo] ? 1 : -1));
+}
+
+const lista: Produto[] = [
+  { nome: "Uva", preco: 9, estoque: 3 },
+  { nome: "Kiwi", preco: 12, estoque: 1 },
+  { nome: "Pera", preco: 7, estoque: 5 },
+];
+console.log(ordenarPor(lista, "preco").map((p) =&gt; p.nome));
+console.log(ordenarPor(lista, "nome").map((p) =&gt; p.nome));
+
+ordenarPor(lista, "peso");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/keyof.ts(16,19): error TS2345: Argument of type '"peso"' is not assignable to parameter of type 'keyof Produto'.</pre>
+<p>O tipo <code>Campo</code> é <code>"nome" | "preco" | "estoque"</code> (a mensagem o chama de <code>keyof Produto</code>). Se alguém acrescentar um campo em <code>Produto</code>, o <code>Campo</code> acompanha sozinho. Sem a última linha:</p>
+
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/keyof.js
+[ 'Pera', 'Uva', 'Kiwi' ]
+[ 'Kiwi', 'Pera', 'Uva' ]</pre>
+<hr>
+<h2>2. typeof: o tipo de uma variável</h2>
+<p>No JavaScript, <code>typeof</code> roda e devolve um texto (<code>"number"</code>). Num lugar de <strong>tipo</strong>, o <code>typeof</code> do TypeScript devolve o tipo completo da variável:</p>
+
+<pre class="file" data-file="src/typeof.ts">const configPadrao = {
+  tema: "claro",
+  fonte: 16,
+  atalhos: true,
+};
+
+type Config = typeof configPadrao;
+
+function aplicar(c: Config) {
+  console.log(`tema ${c.tema}, fonte ${c.fonte}`);
+}
+aplicar({ tema: "escuro", fonte: 18, atalhos: false });
+
+aplicar({ tema: "escuro" });</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/typeof.ts(14,9): error TS2739: Type '{ tema: string; }' is missing the following properties from type '{ tema: string; fonte: number; atalhos: boolean; }': fonte, atalhos</pre>
+<p>O tipo <code>Config</code> nasceu do objeto: <code>{ tema: string; fonte: number; atalhos: boolean }</code>. Repare que a mensagem mostra o tipo por extenso, porque ele não foi escrito à mão em lugar nenhum.</p>
+<hr>
+<h2>3. Acesso indexado: T["campo"]</h2>
+
+<pre class="file" data-file="src/indexado.ts">type Pedido = {
+  id: number;
+  cliente: { nome: string; cidade: string };
+  itens: { produto: string; qtd: number }[];
+};
+
+type Cliente = Pedido["cliente"];
+type Item = Pedido["itens"][number];
+
+const c: Cliente = { nome: "Ana", cidade: "Recife" };
+const i: Item = { produto: "café", qtd: 2 };
+console.log(c, i);
+
+const teste: Pedido[keyof Pedido] = true;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/indexado.ts(14,7): error TS2322: Type 'boolean' is not assignable to type 'number | { produto: string; qtd: number; }[] | { nome: string; cidade: string; }'.</pre>
+<p><code>Pedido["cliente"]</code> é o tipo daquele campo. <code>["itens"][number]</code> é “o tipo de um item do array”. E <code>Pedido[keyof Pedido]</code> é a união dos tipos de todos os campos, como o erro de propósito da última linha mostra.</p>
+<hr>
+<h2>4. keyof typeof com as const</h2>
+<p>Esta combinação aparece muito: a lista de opções existe uma vez só, como objeto de verdade, e os tipos saem dela.</p>
+
+<pre class="file" data-file="src/keyof-typeof.ts">const PLANOS = {
+  basico: 19.9,
+  plus: 39.9,
+  premium: 79.9,
+} as const;
+
+type Plano = keyof typeof PLANOS;
+
+function assinar(plano: Plano) {
+  console.log(`Plano ${plano}: R$ ${PLANOS[plano]}`);
+}
+
+assinar("plus");
+for (const p of Object.keys(PLANOS) as Plano[]) assinar(p);
+
+assinar("gold");</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/keyof-typeof.ts(16,9): error TS2345: Argument of type '"gold"' is not assignable to parameter of type '"basico" | "plus" | "premium"'.</pre>
+<p>O <code>typeof PLANOS</code> é o tipo do objeto; o <code>keyof</code> desse tipo é <code>"basico" | "plus" | "premium"</code>. Acrescentou um plano no objeto? O tipo já sabe.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>keyof num valor (em vez de num tipo)</strong>
+
+<pre class="file" data-file="src/keyof-valor.ts">const cores = { azul: "#00f", verde: "#0f0" };
+type Cor = keyof cores;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/keyof-valor.ts(2,18): error TS2749: 'cores' refers to a value, but is being used as a type here. Did you mean 'typeof cores'?</pre>
+<p>O <code>keyof</code> trabalha com tipos. Para um valor, use <code>keyof typeof cores</code>; a mensagem até sugere isso.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Escrita</th><th>Resultado</th></tr>
+<tr><td><code>keyof T</code></td><td>união das chaves de T</td></tr>
+<tr><td><code>typeof x</code> (num tipo)</td><td>o tipo da variável x</td></tr>
+<tr><td><code>T["campo"]</code></td><td>o tipo de um campo</td></tr>
+<tr><td><code>T[number]</code></td><td>o tipo dos itens de um array/tupla</td></tr>
+<tr><td><code>keyof typeof obj</code></td><td>as chaves de um objeto de verdade</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. As chaves</h3><p>Complete para <code>Campo</code> ser a união das chaves de <code>Produto</code>:</p><div class="ex-code">type Campo = <input data-answer="keyof" aria-label="operador"> Produto;</div></div>
+<div class="exercise"><h3>2. O tipo da variável</h3><p>Complete para criar um tipo a partir do objeto <code>padrao</code>:</p><div class="ex-code">type Config = <input data-answer="typeof" aria-label="operador"> padrao;</div></div>
+<div class="exercise"><h3>3. As chaves de um objeto</h3><p>Complete:</p><div class="ex-code">type Plano = <input data-answer="keyof typeof" aria-label="operadores"> PLANOS;</div></div>
+<div class="mc" data-answer="3"><p class="mc-q">4. Com <code>type P = { a: string; b: number }</code>, quanto vale <code>P["b"]</code>?</p>
+<label><input type="radio" name="q4"> <code>"b"</code></label>
+<label><input type="radio" name="q4"> <code>string</code></label>
+<label><input type="radio" name="q4"> <code>number</code></label>
+<label><input type="radio" name="q4"> <code>string | number</code></label></div>
+<div class="mc" data-answer="1"><p class="mc-q">5. E <code>keyof P</code>?</p>
+<label><input type="radio" name="q5"> <code>"a" | "b"</code></label>
+<label><input type="radio" name="q5"> <code>string | number</code></label>
+<label><input type="radio" name="q5"> <code>["a", "b"]</code></label>
+<label><input type="radio" name="q5"> <code>string</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:keyof\s+typeof\s+TAXAS;;semerro;;out:SP: 12%;;out:RJ: 15%">
+<p class="try-task"><strong>Missão:</strong> crie <code>type Estado = keyof typeof TAXAS</code> e use em <code>taxa(uf: Estado)</code>. Mostre <code>SP: 12%</code> e <code>RJ: 15%</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const TAXAS = { SP: 12, RJ: 15, MG: 10 } as const;
+function taxa(uf: string) {
+  console.log(`${uf}: ${uf}%`);
+}
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const TAXAS = { SP: 12, RJ: 15, MG: 10 } as const;
+type Estado = keyof typeof TAXAS;
+function taxa(uf: Estado) {
+  console.log(`${uf}: ${TAXAS[uf]}%`);
+}
+taxa("SP");
+taxa("RJ");
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+SP: 12%
+RJ: 15%
+</pre>
+</div>
+<div class="trycmd" data-goal="src:type\s+Opcoes\s*=\s*typeof\s+padrao;;erro:error TS2741: Property 'volume' is missing">
+<p class="try-task"><strong>Missão:</strong> crie <code>type Opcoes = typeof padrao</code>, tipe a constante <code>minhas</code> com ele e cole o erro que mostra o campo que faltou.</p>
+<pre class="script" data-file="src/missao.ts">
+const padrao = { som: true, volume: 7 };
+const minhas = { som: false };
+console.log(minhas);
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+const padrao = { som: true, volume: 7 };
+type Opcoes = typeof padrao;
+const minhas: Opcoes = { som: false };
+console.log(minhas);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+src/missao.ts(3,7): error TS2741: Property 'volume' is missing in type '{ som: false; }' but required in type '{ som: boolean; volume: number; }'.
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li><code>keyof T</code> é a união das chaves; acompanha o tipo sozinho.</li>
+<li><code>typeof x</code>, num lugar de tipo, é o tipo da variável.</li>
+<li><code>T["campo"]</code>, <code>T[number]</code> e <code>T[keyof T]</code> leem tipos de dentro de outros.</li>
+<li><code>keyof typeof obj</code> + <code>as const</code>: uma lista de opções, uma fonte só.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

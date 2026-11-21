@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Utility Types — Partial, Required, Pick, Omit, Record, Readonly e outros | Guia TypeScript</title>
+<meta name="description" content="Os utility types prontos do TypeScript: Partial, Required, Readonly, Pick, Omit, Record, Exclude, Extract, NonNullable, ReturnType e Parameters, com exemplos e erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Utility <span class="hl">Types</span></h1>
+
+<p class="intro">O TypeScript vem com uma caixa de ferramentas de tipos prontos, os <strong>utility types</strong>. Eles criam um tipo novo a partir de outro: “o mesmo, mas com tudo opcional”, “só estes campos”, “todos menos este”. Com eles você evita repetir a mesma forma várias vezes.</p>
+<div class="note"><strong>Você vai aprender</strong><ul>
+<li><code>Partial</code>, <code>Required</code> e <code>Readonly</code>.</li>
+<li><code>Pick</code> e <code>Omit</code>.</li>
+<li><code>Record</code>.</li>
+<li>Para unions e funções: <code>Exclude</code>, <code>Extract</code>, <code>NonNullable</code>, <code>ReturnType</code> e <code>Parameters</code>.</li>
+</ul></div>
+<p>Todos os exemplos usam este tipo como base:</p>
+<pre class="file" data-file="o tipo base">type Usuario = {
+  id: number;
+  nome: string;
+  email: string;
+  idade?: number;
+};</pre>
+<hr>
+<h2>1. Partial: tudo opcional</h2>
+<p>Ótimo para funções de <strong>atualização</strong>, que recebem só o que mudou:</p>
+<pre class="file" data-file="src/partial.ts">type Usuario = { id: number; nome: string; email: string; idade?: number };
+
+function atualizar(u: Usuario, mudancas: Partial&lt;Usuario&gt;): Usuario {
+  return { ...u, ...mudancas };
+}
+
+const ana: Usuario = { id: 1, nome: "Ana", email: "ana@exemplo.com" };
+console.log(atualizar(ana, { email: "ana.souza@exemplo.com" }));
+console.log(atualizar(ana, { idade: 31, nome: "Ana Souza" }));</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc &amp;&amp; node dist/partial.js
+{ id: 1, nome: 'Ana', email: 'ana.souza@exemplo.com' }
+{ id: 1, nome: 'Ana Souza', email: 'ana@exemplo.com', idade: 31 }</pre>
+<hr>
+<h2>2. Required e Readonly</h2>
+
+<pre class="file" data-file="src/required.ts">type Usuario = { id: number; nome: string; email: string; idade?: number };
+
+const completo: Required&lt;Usuario&gt; = { id: 2, nome: "Bia", email: "bia@exemplo.com" };
+
+const fixo: Readonly&lt;Usuario&gt; = { id: 3, nome: "Caio", email: "caio@exemplo.com" };
+fixo.nome = "Outro";</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/required.ts(3,7): error TS2741: Property 'idade' is missing in type '{ id: number; nome: string; email: string; }' but required in type 'Required&lt;Usuario&gt;'.
+src/required.ts(6,6): error TS2540: Cannot assign to 'nome' because it is a read-only property.</pre>
+<p><code>Required</code> tirou o <code>?</code> da <code>idade</code>, que passou a ser obrigatória. <code>Readonly</code> pôs <code>readonly</code> em todos os campos.</p>
+<hr>
+<h2>3. Pick e Omit: escolher ou tirar campos</h2>
+
+<pre class="file" data-file="src/pick-omit.ts">type Usuario = { id: number; nome: string; email: string; idade?: number };
+
+type Cartao = Pick&lt;Usuario, "nome" | "email"&gt;;
+type NovoUsuario = Omit&lt;Usuario, "id"&gt;;
+
+const c: Cartao = { nome: "Ana", email: "ana@exemplo.com" };
+
+function cadastrar(dados: NovoUsuario): Usuario {
+  return { id: 7, ...dados };
+}
+
+console.log(c);
+console.log(cadastrar({ nome: "Bia", email: "bia@exemplo.com" }));
+
+const errado: Cartao = { nome: "Caio", email: "c@exemplo.com", id: 9 };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/pick-omit.ts(15,64): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'Cartao'.</pre>
+<p>O <code>Cartao</code> tem só <code>nome</code> e <code>email</code>, então o <code>id</code> sobrando é recusado. O <code>NovoUsuario</code> é tudo menos <code>id</code>: perfeito para um cadastro, em que o id ainda não existe.</p>
+<hr>
+<h2>4. Record: um objeto de chaves e valores</h2>
+
+<pre class="file" data-file="src/record.ts">type Dia = "seg" | "ter" | "qua";
+
+const horas: Record&lt;Dia, number&gt; = { seg: 8, ter: 6, qua: 7 };
+const precos: Record&lt;string, number&gt; = { cafe: 5, pao: 1.5 };
+
+let total = 0;
+for (const d of Object.keys(horas) as Dia[]) total += horas[d];
+console.log("horas na semana:", total);
+console.log(precos["cafe"]);
+
+const faltando: Record&lt;Dia, number&gt; = { seg: 8, ter: 6 };</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/record.ts(11,7): error TS2741: Property 'qua' is missing in type '{ seg: number; ter: number; }' but required in type 'Record&lt;Dia, number&gt;'.</pre>
+<p>Com uma union de chaves, o <code>Record</code> exige <strong>todas</strong>: esquecer <code>qua</code> é erro.</p>
+<hr>
+<h2>5. Para unions e funções</h2>
+
+<pre class="file" data-file="src/outros.ts">type Status = "ativo" | "inativo" | "banido" | null;
+
+type SemNulo = NonNullable&lt;Status&gt;;
+type Bons = Exclude&lt;SemNulo, "banido"&gt;;
+type Ruins = Extract&lt;Status, "banido" | "suspenso"&gt;;
+
+function criar(nome: string, idade: number) {
+  return { nome, idade, criadoEm: 2026 };
+}
+type Criado = ReturnType&lt;typeof criar&gt;;
+type Args = Parameters&lt;typeof criar&gt;;
+
+const ok1: Bons = "inativo";
+const er1: Bons = "banido";
+const er2: SemNulo = null;
+const ok2: Ruins = "banido";
+const er3: Ruins = "ativo";
+
+const ok3: Criado = { nome: "Ana", idade: 30, criadoEm: 2026 };
+const er4: Criado = { nome: "Ana" };
+const ok4: Args = ["Ana", 30];
+const er5: Args = ["Ana"];</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/outros.ts(14,7): error TS2322: Type '"banido"' is not assignable to type 'Bons'.
+src/outros.ts(15,7): error TS2322: Type 'null' is not assignable to type 'SemNulo'.
+src/outros.ts(17,7): error TS2322: Type '"ativo"' is not assignable to type '"banido"'.
+src/outros.ts(20,7): error TS2739: Type '{ nome: string; }' is missing the following properties from type '{ nome: string; idade: number; criadoEm: number; }': idade, criadoEm
+src/outros.ts(22,7): error TS2322: Type '[string]' is not assignable to type '[nome: string, idade: number]'.
+  Source has 1 element(s) but target requires 2.</pre>
+<p>As linhas <code>ok</code> passaram e as <code>er</code> falharam, uma para cada regra: <code>Bons</code> não tem mais <code>"banido"</code>; <code>SemNulo</code> não aceita <code>null</code>; <code>Ruins</code> ficou só com <code>"banido"</code> (o <code>"suspenso"</code> nem existia em <code>Status</code>); <code>Criado</code> é a forma do objeto que <code>criar</code> devolve; e <code>Args</code> é a tupla dos parâmetros, <code>[nome: string, idade: number]</code>.</p>
+<hr>
+<h2 id="errado">Quando dá errado</h2>
+<div class="cenario"><strong>Pick com um campo que não existe</strong>
+
+<pre class="file" data-file="src/pick-erro.ts">type Usuario = { id: number; nome: string };
+type X = Pick&lt;Usuario, "telefone"&gt;;</pre>
+<pre class="term" data-cwd="~/projeto">$ npx tsc
+src/pick-erro.ts(2,24): error TS2344: Type '"telefone"' does not satisfy the constraint 'keyof Usuario'.</pre>
+<p>O <code>Pick</code> só aceita chaves de verdade do tipo. Já o <code>Omit</code> é mais solto e aceita qualquer texto, então um erro de digitação nele passa despercebido.</p>
+</div>
+<hr>
+<h2>Referência rápida</h2>
+<div class="table-wrap"><table class="ref">
+<tr><th>Utility</th><th>Resultado</th></tr>
+<tr><td><code>Partial&lt;T&gt;</code></td><td>todos os campos opcionais</td></tr>
+<tr><td><code>Required&lt;T&gt;</code></td><td>todos obrigatórios</td></tr>
+<tr><td><code>Readonly&lt;T&gt;</code></td><td>todos somente leitura</td></tr>
+<tr><td><code>Pick&lt;T, "a" | "b"&gt;</code></td><td>só os campos a e b</td></tr>
+<tr><td><code>Omit&lt;T, "a"&gt;</code></td><td>todos menos a</td></tr>
+<tr><td><code>Record&lt;K, V&gt;</code></td><td>objeto com chaves K e valores V</td></tr>
+<tr><td><code>Exclude&lt;U, X&gt;</code> / <code>Extract&lt;U, X&gt;</code></td><td>tira / mantém membros de uma union</td></tr>
+<tr><td><code>NonNullable&lt;T&gt;</code></td><td>tira <code>null</code> e <code>undefined</code></td></tr>
+<tr><td><code>ReturnType&lt;typeof f&gt;</code> / <code>Parameters&lt;typeof f&gt;</code></td><td>tipo do retorno / tupla dos parâmetros</td></tr>
+</table></div>
+<hr>
+<h2>Exercícios</h2>
+<div class="exercise"><h3>1. Tudo opcional</h3><p>Complete:</p><div class="ex-code">function atualizar(mudancas: <input data-answer="Partial" aria-label="utility">&lt;Usuario&gt;) { … }</div></div>
+<div class="exercise"><h3>2. Todos menos</h3><p>Complete para criar o tipo de <code>Usuario</code> sem o <code>id</code>:</p><div class="ex-code">type Novo = <input data-answer="Omit" aria-label="utility">&lt;Usuario, "id"&gt;;</div></div>
+<div class="exercise"><h3>3. Chaves e valores</h3><p>Complete para um objeto de nomes (texto) para notas (número):</p><div class="ex-code">const notas: <input data-answer="Record" aria-label="utility">&lt;string, number&gt; = {};</div></div>
+<div class="mc" data-answer="2"><p class="mc-q">4. Qual utility escolhe só alguns campos de um tipo?</p>
+<label><input type="radio" name="q4"> <code>Omit</code></label>
+<label><input type="radio" name="q4"> <code>Pick</code></label>
+<label><input type="radio" name="q4"> <code>Record</code></label>
+<label><input type="radio" name="q4"> <code>Partial</code></label></div>
+<div class="mc" data-answer="4"><p class="mc-q">5. <code>Exclude&lt;"a" | "b" | "c", "a"&gt;</code> é…</p>
+<label><input type="radio" name="q5"> <code>"a"</code></label>
+<label><input type="radio" name="q5"> <code>never</code></label>
+<label><input type="radio" name="q5"> <code>"a" | "b" | "c"</code></label>
+<label><input type="radio" name="q5"> <code>"b" | "c"</code></label></div>
+<hr>
+<h2>Missões</h2>
+<div class="trycmd" data-goal="src:Partial\s*&lt;\s*Config\s*&gt;;;semerro;;out:{ tema: 'escuro', fonte: 16, idioma: 'pt-BR' }">
+<p class="try-task"><strong>Missão:</strong> faça <code>configurar</code> receber <code>Partial&lt;Config&gt;</code> e juntar com o padrão. Mostre o resultado de <code>configurar({ tema: "escuro" })</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Config = { tema: string; fonte: number; idioma: string };
+const padrao: Config = { tema: "claro", fonte: 16, idioma: "pt-BR" };
+
+function configurar(opcoes: Config): Config {
+  return { ...padrao, ...opcoes };
+}
+console.log(configurar({ tema: "escuro" }));
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Config = { tema: string; fonte: number; idioma: string };
+const padrao: Config = { tema: "claro", fonte: 16, idioma: "pt-BR" };
+
+function configurar(opcoes: Partial&lt;Config&gt;): Config {
+  return { ...padrao, ...opcoes };
+}
+console.log(configurar({ tema: "escuro" }));
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+{ tema: 'escuro', fonte: 16, idioma: 'pt-BR' }
+</pre>
+</div>
+<div class="trycmd" data-goal="src:Record\s*&lt;\s*Fruta\s*,\s*number\s*&gt;;;semerro;;out:Total: 12 frutas">
+<p class="try-task"><strong>Missão:</strong> crie <code>type Fruta = "maca" | "uva" | "pera"</code> e um <code>estoque: Record&lt;Fruta, number&gt;</code> com 5, 4 e 3. Some e mostre <code>Total: 12 frutas</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+const estoque = { maca: 5, uva: 4, pera: 3 };
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Fruta = "maca" | "uva" | "pera";
+const estoque: Record&lt;Fruta, number&gt; = { maca: 5, uva: 4, pera: 3 };
+let total = 0;
+for (const qtd of Object.values(estoque)) total += qtd;
+console.log(`Total: ${total} frutas`);
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Total: 12 frutas
+</pre>
+</div>
+<div class="trycmd" data-goal="src:Pick\s*&lt;\s*Usuario\s*,\s*[&quot;']nome[&quot;']\s*\|\s*[&quot;']email[&quot;']\s*&gt;|Pick\s*&lt;\s*Usuario\s*,\s*[&quot;']email[&quot;']\s*\|\s*[&quot;']nome[&quot;']\s*&gt;;;semerro;;out:Ana &lt;ana@exemplo.com&gt;">
+<p class="try-task"><strong>Missão:</strong> crie <code>type Contato = Pick&lt;Usuario, "nome" | "email"&gt;</code> e uma função <code>formatar(c: Contato)</code> que mostra <code>Ana &lt;ana@exemplo.com&gt;</code>.</p>
+<pre class="script" data-file="src/missao.ts">
+type Usuario = { id: number; nome: string; email: string; senha: string };
+</pre>
+<pre class="solucao" data-file="src/missao.ts">
+type Usuario = { id: number; nome: string; email: string; senha: string };
+type Contato = Pick&lt;Usuario, "nome" | "email"&gt;;
+function formatar(c: Contato) {
+  console.log(`${c.nome} &lt;${c.email}&gt;`);
+}
+formatar({ nome: "Ana", email: "ana@exemplo.com" });
+</pre>
+<pre class="saida-ok" data-file="src/missao.ts" hidden>
+Ana &lt;ana@exemplo.com&gt;
+</pre>
+</div>
+<hr>
+<h2>Resumo</h2>
+<ul>
+<li>Utility types criam tipos a partir de outros, sem repetir campos.</li>
+<li><code>Partial</code>/<code>Required</code>/<code>Readonly</code> mudam todos os campos; <code>Pick</code>/<code>Omit</code> escolhem; <code>Record</code> monta chave → valor.</li>
+<li><code>Exclude</code>, <code>Extract</code> e <code>NonNullable</code> filtram unions; <code>ReturnType</code> e <code>Parameters</code> leem funções.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
